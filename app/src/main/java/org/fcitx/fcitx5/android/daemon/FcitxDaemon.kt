@@ -44,7 +44,6 @@ object FcitxDaemon {
 
     // don't leak fcitx instance
     private val fcitxImpl by lazy { object : FcitxAPI by realFcitx {} }
-
     private fun mkConnection(name: String) = object : FcitxConnection {
 
         private inline fun <T> ensureConnected(block: () -> T) =

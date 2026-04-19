@@ -55,6 +55,11 @@ interface FcitxAPI {
     suspend fun select(idx: Int): Boolean
     suspend fun isEmpty(): Boolean
     suspend fun reset()
+
+    suspend fun setRimeInput(input: String)
+
+    suspend fun getRimeInput(): String
+    suspend fun getRimeInputConfirmPosition(): Int
     suspend fun moveCursor(position: Int)
 
     suspend fun availableIme(): Array<InputMethodEntry>

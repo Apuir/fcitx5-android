@@ -10,7 +10,9 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.transition.Slide
+import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.InputMethodEntry
@@ -21,6 +23,7 @@ import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
+import org.fcitx.fcitx5.android.input.dialog.AddMoreInputMethodsPrompt
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
@@ -32,6 +35,7 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
+import timber.log.Timber
 
 class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), EssentialWindow,
     InputBroadcastReceiver {
@@ -68,7 +72,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
-            NumberKeyboard.Name to NumberKeyboard(context, theme)
+            NumberKeyboard.Name to NumberKeyboard(context, theme),
+            T9TextKeyboard.Name to T9TextKeyboard(context, theme)
         )
     }
     private var currentKeyboardName = ""
@@ -83,6 +88,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             commonKeyActionListener.listener.onKeyAction(it, source)
         }
     }
+
+    private val preferKeyboardMap = mapOf(
+        "T9" to T9TextKeyboard.Name,
+        "T26" to TextKeyboard.Name
+    )
 
     private val popupActionListener: PopupActionListener by lazy {
         popup.listener
@@ -144,11 +154,18 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             InputType.TYPE_CLASS_PHONE -> NumberKeyboard.Name
             else -> TextKeyboard.Name
         }
-        switchLayout(targetLayout, remember = false)
+        when(targetLayout){
+            NumberKeyboard.Name -> switchLayout(targetLayout, remember = false)
+            else -> autoSwitchLayout(targetLayout)
+        }
     }
 
     override fun onImeUpdate(ime: InputMethodEntry) {
         currentKeyboard?.onInputMethodUpdate(ime)
+        when(currentKeyboardName){
+            NumberKeyboard.Name ->{}
+            else -> autoSwitchLayout(TextKeyboard.Name)
+        }
     }
 
     override fun onPunctuationUpdate(mapping: Map<String, String>) {
@@ -182,5 +199,19 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     // 2) currently keyboard window is attached and switchLayout was used
     private fun notifyBarLayoutChanged() {
         bar.onKeyboardLayoutSwitched(currentKeyboardName == NumberKeyboard.Name)
+    }
+
+    // 主UI支持不同引擎的自主逻辑切换
+    private fun autoSwitchLayout(fallback: String){
+        service.postFcitxJob {
+            val config = getImConfig(currentIme().uniqueName)
+            val preferLayout = config.subItems
+                ?.asSequence()
+                ?.flatMap { it.subItems.orEmpty().asSequence() }
+                ?.firstOrNull { it.name == "PreferKeyboard" }
+                ?.value
+                ?.let { preferKeyboardMap[it] }
+            switchLayout(preferLayout ?: fallback, remember = false)
+        }
     }
 }

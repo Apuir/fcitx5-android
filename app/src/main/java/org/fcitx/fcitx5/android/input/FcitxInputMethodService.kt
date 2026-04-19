@@ -81,6 +81,10 @@ import kotlin.math.max
 
 class FcitxInputMethodService : LifecycleInputMethodService() {
 
+    private val preferredVoiceInput by AppPrefs.getInstance().keyboard.preferredVoiceInput
+
+    private lateinit var composingPreedit: String
+
     private lateinit var fcitx: FcitxConnection
 
     private var jobs = Channel<Job>(capacity = Channel.UNLIMITED)
@@ -300,6 +304,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             is FcitxEvent.ClientPreeditEvent -> {
                 updateComposingText(event.data)
             }
+            is FcitxEvent.InputPanelEvent -> {
+                updateComposingPreedit(event.data.preedit)
+            }
             is FcitxEvent.DeleteSurroundingEvent -> {
                 val (before, after) = event.data
                 handleDeleteSurrounding(before, after)
@@ -326,6 +333,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
             else -> {}
         }
+    }
+
+    private fun updateComposingPreedit(preedit: FormattedText) {
+        composingPreedit = preedit.toString()
     }
 
     private fun handleDeleteSurrounding(before: Int, after: Int) {
@@ -514,6 +525,26 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             it.setSelection(start, end)
         }
     }
+
+    fun clearContextOrInput() {
+        if (!::composingPreedit.isInitialized) return
+        if (composingPreedit.isNotEmpty()) {
+            postFcitxJob { reset() }
+            return
+        }
+        if (currentInputConnection != null) {
+            val before = currentInputConnection.getTextBeforeCursor(Int.MAX_VALUE, 0)?.length ?: 0
+            val after = currentInputConnection.getTextAfterCursor(Int.MAX_VALUE, 0)?.length ?: 0
+            currentInputConnection.deleteSurroundingText(before, after)
+        }
+    }
+
+    fun switchVoiceInput() {
+        val voiceInputSubtype = InputMethodUtil.findVoiceSubtype(preferredVoiceInput)
+        val (id, subtype) = voiceInputSubtype ?: return
+        InputMethodUtil.switchInputMethod(this, id, subtype)
+    }
+
 
     fun cancelSelection() {
         val lastSelection = selection.latest

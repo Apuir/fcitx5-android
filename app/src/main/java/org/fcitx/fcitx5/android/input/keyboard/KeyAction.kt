@@ -21,6 +21,9 @@ sealed class KeyAction {
 
     data class CommitAction(val text: String) : KeyAction()
 
+    data class DirectCommitAction(val text: String) : KeyAction()
+
+    data class SelectPinYinAction(val pos: Int, val raw: String, val pinYin: String): KeyAction()
     data class CapsAction(val lock: Boolean) : KeyAction()
 
     data object QuickPhraseAction : KeyAction()
@@ -28,6 +31,10 @@ sealed class KeyAction {
     data object UnicodeAction : KeyAction()
 
     data object LangSwitchAction : KeyAction()
+
+    data object ClearAction : KeyAction()
+
+    data object VoiceAction : KeyAction()
 
     data object ShowInputMethodPickerAction : KeyAction()
 

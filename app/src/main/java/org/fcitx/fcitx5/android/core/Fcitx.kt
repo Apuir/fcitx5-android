@@ -103,7 +103,18 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     ) =
         withFcitxContext { sendKeySymToFcitx(sym.sym, states.toInt(), code, up, timestamp) }
 
-    override suspend fun select(idx: Int): Boolean = withFcitxContext { selectCandidate(idx) }
+    override suspend fun setRimeInput(input: String) = withFcitxContext { setInput(input) }
+
+    override suspend fun getRimeInput(): String = withFcitxContext { getInput() }
+
+    override suspend fun getRimeInputConfirmPosition(): Int =
+        withFcitxContext { getInputConfirmPosition() }
+
+    override suspend fun select(idx: Int): Boolean = withFcitxContext {
+        selectCandidate(idx)
+        eventFlow_.tryEmit(FcitxEvent.create(12, arrayOf(idx)))
+    }
+
     override suspend fun isEmpty(): Boolean = withFcitxContext { isInputPanelEmpty() }
     override suspend fun reset() = withFcitxContext { resetInputContext() }
     override suspend fun moveCursor(position: Int) = withFcitxContext { repositionCursor(position) }
@@ -278,6 +289,15 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
 
         @JvmStatic
         external fun resetInputContext()
+
+        @JvmStatic
+        external fun setInput(input: String)
+
+        @JvmStatic
+        external fun getInput():String
+
+        @JvmStatic
+        external fun getInputConfirmPosition(): Int
 
         @JvmStatic
         external fun repositionCursor(position: Int)

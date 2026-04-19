@@ -5,6 +5,7 @@
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.graphics.Typeface
+import android.view.View
 import androidx.annotation.DrawableRes
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.FcitxKeyMapping
@@ -15,6 +16,7 @@ import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
+import org.fcitx.fcitx5.android.input.popup.PopupAction
 
 val NumLockState = KeyStates(KeyState.NumLock, KeyState.Virtual)
 
@@ -56,8 +58,95 @@ class AlphabetKey(
         Behavior.Swipe(KeyAction.FcitxKeyAction(punctuation))
     ),
     popup ?: arrayOf(
-        Popup.AltPreview(character, punctuation),
         Popup.Keyboard(character)
+    )
+)
+
+
+class PlaceHolderKey(percentWidth: Float = 0.15f) : MixAlphabetKey(
+    character = "PlaceHolder",
+    punctuation = "#",
+    visibility = View.INVISIBLE,
+    percentWidth = percentWidth,
+    variant = Variant.Normal
+)
+
+class PinYinCandidateKey(
+    pos: Int,
+    raw: String,
+    pinYin: String,
+) : KeyDef(
+    Appearance.Text(
+        pinYin,
+        textSize = 15f,
+        percentWidth = 0.15f,
+        variant = Variant.Normal,
+        border = Border.Off,
+        visibility = View.VISIBLE,
+    ),
+    setOf(
+        Behavior.Press(KeyAction.SelectPinYinAction(pos, raw, pinYin))
+    ),
+    arrayOf(),
+)
+
+class CommitKey(
+    content: String
+) : KeyDef(
+    Appearance.Text(
+        content,
+        textSize = 15f,
+        percentWidth = 0.15f,
+        variant = Variant.Normal,
+        border = Border.Off,
+        visibility = View.VISIBLE,
+    ),
+    setOf(
+        Behavior.Press(KeyAction.CommitAction(content))
+    ),
+    arrayOf(),
+)
+
+open class MixAlphabetKey(
+    val character: String,
+    val punctuation: String,
+
+    variant: Variant = Variant.Normal,
+    popup: Array<Popup>? = null,
+    percentWidth: Float = 0.232f,
+    textSize: Float = 16f,
+    visibility: Int = View.VISIBLE,
+) : KeyDef(
+    Appearance.AltText(
+        displayText = character,
+        altText = punctuation,
+        textSize = textSize,
+        variant = variant,
+        percentWidth = percentWidth,
+        visibility = visibility,
+    ),
+    setOf(
+        Behavior.Press(KeyAction.FcitxKeyAction(punctuation)),
+    ),
+    popup ?: arrayOf(
+        Popup.Keyboard(punctuation)
+    )
+)
+
+class ColumnKey(
+    children: List<KeyDef>,
+    variant: Variant = Variant.Normal,
+    popup: Array<Popup>? = null,
+    percentWidth: Float = 0.212f,
+) : KeyDef(
+    Appearance.Column(
+        children = children,
+        variant = variant,
+        percentWidth = percentWidth,
+    ),
+    setOf(
+    ),
+    popup ?: arrayOf(
     )
 )
 
@@ -142,6 +231,40 @@ class BackspaceKey(
     )
 )
 
+
+class ClearKey(
+    displayText: String,
+    percentWidth: Float = 0.18f,
+    variant: Variant = Variant.Alternative
+) : KeyDef(
+    Appearance.Text(
+        displayText,
+        textSize = 16f,
+        percentWidth = percentWidth,
+        variant = variant
+    ),
+    setOf(
+        Behavior.Press(KeyAction.ClearAction)
+    )
+)
+
+class VoiceKey(
+    percentWidth: Float = 0.15f,
+    variant: Variant = Variant.Alternative
+) : KeyDef(
+    Appearance.Image(
+        src = R.drawable.ic_baseline_keyboard_voice_24,
+        percentWidth = percentWidth,
+        variant = variant,
+        viewId = R.id.button_voice,
+        soundEffect = InputFeedbacks.SoundEffect.Standard
+    ),
+    setOf(
+        Behavior.Press(KeyAction.VoiceAction),
+    )
+)
+
+
 class QuickPhraseKey : KeyDef(
     Appearance.Image(
         src = R.drawable.ic_baseline_format_quote_24,
@@ -192,11 +315,15 @@ class CommaKey(
     )
 )
 
-class LanguageKey : KeyDef(
+class LanguageKey(
+    percentWidth: Float = 0f,
+    variant: Variant = Variant.Alternative
+) : KeyDef(
     Appearance.Image(
+        percentWidth = percentWidth,
         src = R.drawable.ic_baseline_language_24,
-        variant = Variant.AltForeground,
-        viewId = R.id.button_lang
+        variant = variant,
+        viewId = R.id.button_lang,
     ),
     setOf(
         Behavior.Press(KeyAction.LangSwitchAction),
@@ -204,11 +331,13 @@ class LanguageKey : KeyDef(
     )
 )
 
-class SpaceKey : KeyDef(
+class SpaceKey(
+    percentWidth: Float = 0f,
+) : KeyDef(
     Appearance.Text(
         displayText = " ",
         textSize = 13f,
-        percentWidth = 0f,
+        percentWidth = percentWidth,
         border = Border.Special,
         viewId = R.id.button_space,
         soundEffect = InputFeedbacks.SoundEffect.SpaceBar

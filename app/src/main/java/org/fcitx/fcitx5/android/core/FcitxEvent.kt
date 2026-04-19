@@ -89,6 +89,16 @@ sealed class FcitxEvent<T>(open val data: T) {
         )
     }
 
+    data class SelectCandidateEvent(override val data: Data) :
+        FcitxEvent<SelectCandidateEvent.Data>(data) {
+
+        override val eventType = EventType.SelectCandidate
+
+        data class Data(
+            val index: Int,
+        )
+    }
+
     data class IMChangeEvent(override val data: InputMethodEntry) :
         FcitxEvent<InputMethodEntry>(data) {
         override val eventType: EventType
@@ -236,7 +246,8 @@ sealed class FcitxEvent<T>(open val data: T) {
         DeleteSurrounding,
         PagedCandidate,
         SwitchInputMethod,
-        Unknown
+        Unknown,
+        SelectCandidate, //新增的虚拟事件
     }
 
     companion object {
@@ -246,6 +257,11 @@ sealed class FcitxEvent<T>(open val data: T) {
         @Suppress("UNCHECKED_CAST")
         fun create(type: Int, params: Array<Any>) =
             when (Types[type]) {
+                EventType.SelectCandidate -> SelectCandidateEvent(
+                    SelectCandidateEvent.Data(
+                        params[0] as Int,
+                    )
+                )
                 EventType.Candidate -> CandidateListEvent(
                     CandidateListEvent.Data(
                         params[0] as Int,

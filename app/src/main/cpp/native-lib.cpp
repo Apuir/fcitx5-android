@@ -166,6 +166,24 @@ public:
         p_instance->setCurrentInputMethod(ic, ime, true);
     }
 
+    void setInput(const std::string &input) {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return;
+        p_instance->setInput(ic, input);
+    }
+
+    const char * getInput() {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return "";
+        return p_instance->getInput(ic);
+    }
+
+    size_t getInputConfirmPosition() {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return 0;
+        return p_instance->getInputConfirmPosition(ic);
+    }
+
     std::vector<const fcitx::InputMethodEntry *> availableInputMethods() {
         std::vector<const fcitx::InputMethodEntry *> entries;
         p_instance->inputMethodManager().foreachEntries([&](const auto &entry) {
@@ -849,6 +867,28 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_setInputMethod(JNIEnv *env, jclass claz
     Fcitx::Instance().setInputMethod(CString(env, ime));
 }
 
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_setInput(JNIEnv *env, jclass clazz,jstring input) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().setInput(CString(env, input));
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_getInput(JNIEnv *env, jclass clazz) {
+    RETURN_VALUE_IF_NOT_RUNNING(env->NewStringUTF(""))
+    const char *input =  Fcitx::Instance().getInput();
+    return env->NewStringUTF(input);
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_getInputConfirmPosition(JNIEnv *env, jclass clazz) {
+    RETURN_VALUE_IF_NOT_RUNNING(0)
+    size_t pos = Fcitx::Instance().getInputConfirmPosition();
+    return static_cast<jint>(pos);
+}
 extern "C"
 JNIEXPORT jobjectArray JNICALL
 Java_org_fcitx_fcitx5_android_core_Fcitx_availableInputMethods(JNIEnv *env, jclass clazz) {

@@ -71,10 +71,10 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
             R.string.key_vertical_margin,
             R.string.portrait,
             "key_vertical_margin",
-            7,
+            3,
             R.string.landscape,
             "key_vertical_margin_landscape",
-            4,
+            3,
             0,
             24,
             "dp"
@@ -83,7 +83,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         keyVerticalMarginLandscape = secondary
     }
 
-    val keyRadius = int(R.string.key_radius, "key_radius", 4, 0, 48, "dp")
+    val keyRadius = int(R.string.key_radius, "key_radius", 8, 0, 48, "dp")
 
     val textEditingButtonRadius =
         int(R.string.text_editing_button_radius, "text_editing_button_radius", 8, 0, 48, "dp")

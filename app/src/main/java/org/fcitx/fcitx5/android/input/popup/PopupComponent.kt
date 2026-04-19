@@ -28,6 +28,7 @@ import splitties.dimensions.dp
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
+import timber.log.Timber
 import java.util.LinkedList
 
 class PopupComponent :

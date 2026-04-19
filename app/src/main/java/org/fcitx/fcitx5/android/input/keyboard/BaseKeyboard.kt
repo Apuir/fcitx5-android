@@ -78,7 +78,8 @@ abstract class BaseKeyboard(
     private val disabledSwipeThreshold = dp(800f)
 
     private val bounds = Rect()
-    private val keyRows: List<ConstraintLayout>
+
+    protected val keyRows: List<ConstraintLayout>
 
     /**
      * HashMap of [PointerId (Int)][MotionEvent.getPointerId] to [KeyView]
@@ -144,12 +145,13 @@ abstract class BaseKeyboard(
         spaceSwipeMoveCursor.registerOnChangeListener(spaceSwipeChangeListener)
     }
 
-    private fun createKeyView(def: KeyDef): KeyView {
+    protected fun createKeyView(def: KeyDef): KeyView {
         return when (def.appearance) {
             is KeyDef.Appearance.AltText -> AltTextKeyView(context, theme, def.appearance)
             is KeyDef.Appearance.ImageText -> ImageTextKeyView(context, theme, def.appearance)
             is KeyDef.Appearance.Text -> TextKeyView(context, theme, def.appearance)
             is KeyDef.Appearance.Image -> ImageKeyView(context, theme, def.appearance)
+            is KeyDef.Appearance.Column -> ColumnKeyView(context, theme, def.appearance)
         }.apply {
             soundEffect = when (def) {
                 is SpaceKey -> InputFeedbacks.SoundEffect.SpaceBar

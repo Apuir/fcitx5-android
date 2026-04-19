@@ -100,6 +100,10 @@ class CommonKeyActionListener :
                     commitAndReset()
                     service.lifecycleScope.launch { service.commitText(action.text) }
                 }
+                is KeyAction.DirectCommitAction -> service.postFcitxJob {
+                    reset()
+                    service.lifecycleScope.launch { service.commitText(action.text) }
+                }
                 is QuickPhraseAction -> service.postFcitxJob {
                     commitAndReset()
                     triggerQuickPhrase()
@@ -107,6 +111,12 @@ class CommonKeyActionListener :
                 is UnicodeAction -> service.postFcitxJob {
                     commitAndReset()
                     triggerUnicode()
+                }
+                is KeyAction.ClearAction -> {
+                    service.clearContextOrInput()
+                }
+                is KeyAction.VoiceAction ->{
+                    service.switchVoiceInput()
                 }
                 is LangSwitchAction -> {
                     when (langSwitchKeyBehavior) {

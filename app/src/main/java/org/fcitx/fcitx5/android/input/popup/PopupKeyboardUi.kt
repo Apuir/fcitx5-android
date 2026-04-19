@@ -145,9 +145,18 @@ class PopupKeyboardUi(
      * ```
      * in which `0` indicates default focus
      */
+    //private val keyOrders = Array(rowCount) { row ->
+    //    IntArray(columnCount) { col -> row * columnCount + columnOrder[col] }
+    //}
+
+    // 保持原有顺序
     private val keyOrders = Array(rowCount) { row ->
-        IntArray(columnCount) { col -> row * columnCount + columnOrder[col] }
+        IntArray(columnCount) { col ->
+            row * columnCount + col
+        }
     }
+
+
 
     private var focusedIndex = keyOrders[focusRow][focusColumn]
 

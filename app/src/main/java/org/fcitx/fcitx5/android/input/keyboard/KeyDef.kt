@@ -5,6 +5,7 @@
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.graphics.Typeface
+import android.view.View
 import androidx.annotation.DrawableRes
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 
@@ -16,10 +17,11 @@ open class KeyDef(
     sealed class Appearance(
         val percentWidth: Float,
         val variant: Variant,
-        val border: Border,
+        var border: Border,
         val margin: Boolean,
         val viewId: Int,
-        val soundEffect: InputFeedbacks.SoundEffect
+        val soundEffect: InputFeedbacks.SoundEffect,
+        var visibility: Int = View.VISIBLE,
     ) {
         enum class Variant {
             Normal, AltForeground, Alternative, Accent
@@ -42,8 +44,9 @@ open class KeyDef(
             border: Border = Border.Default,
             margin: Boolean = true,
             viewId: Int = -1,
-            soundEffect: InputFeedbacks.SoundEffect = InputFeedbacks.SoundEffect.Standard
-        ) : Appearance(percentWidth, variant, border, margin, viewId, soundEffect)
+            soundEffect: InputFeedbacks.SoundEffect = InputFeedbacks.SoundEffect.Standard,
+            visibility:Int = View.VISIBLE,
+        ) : Appearance(percentWidth, variant, border, margin, viewId, soundEffect,visibility)
 
         class AltText(
             displayText: String,
@@ -59,7 +62,8 @@ open class KeyDef(
             border: Border = Border.Default,
             margin: Boolean = true,
             viewId: Int = -1,
-        ) : Text(displayText, textSize, textStyle, percentWidth, variant, border, margin, viewId)
+            visibility: Int = View.VISIBLE,
+        ) : Text(displayText, textSize, textStyle, percentWidth, variant, border, margin, viewId, visibility = visibility)
 
         class Image(
             @DrawableRes
@@ -71,6 +75,15 @@ open class KeyDef(
             viewId: Int = -1,
             soundEffect: InputFeedbacks.SoundEffect = InputFeedbacks.SoundEffect.Standard
         ) : Appearance(percentWidth, variant, border, margin, viewId, soundEffect)
+
+        class Column(
+            val children: List<KeyDef>,
+            percentWidth: Float = 0.1f,
+            variant: Variant = Variant.Normal,
+            border: Border = Border.Default,
+            margin: Boolean = true,
+            viewId: Int = -1,
+        ) : Appearance(percentWidth, variant, border, margin, viewId, InputFeedbacks.SoundEffect.Standard)
 
         class ImageText(
             displayText: String,
