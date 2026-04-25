@@ -6,17 +6,24 @@ package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
+import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import splitties.views.imageResource
+import kotlin.collections.asSequence
+import kotlin.collections.orEmpty
 
 @SuppressLint("ViewConstructor")
 class NumberKeyboard(
     context: Context,
     theme: Theme,
 ) : BaseKeyboard(context, theme, Layout) {
+
+    private val fcitx = FcitxDaemon.connect(javaClass.name)
+
 
     companion object {
         const val Name = "Number"
@@ -44,7 +51,7 @@ class NumberKeyboard(
                 BackspaceKey()
             ),
             listOf(
-                LayoutSwitchKey("ABC", TextKeyboard.Name),
+                LayoutSwitchKey("Abc", "", textSize = 15f),
                 NumPadKey(",", 0xffac, 23f, 0.1f, KeyDef.Appearance.Variant.Alternative),
                 LayoutSwitchKey("!?#", PickerWindow.Key.Symbol.name, 0.13333f, KeyDef.Appearance.Variant.AltForeground),
                 NumPadKey("0", 0xffb0, 30f, 0.23334f),
@@ -68,4 +75,27 @@ class NumberKeyboard(
         // leave empty on purpose to disable popup in NumberKeyboard
     }
 
+    override fun onAction(action: KeyAction, source: KeyActionListener.Source) {
+        when (action) {
+            is KeyAction.LayoutSwitchAction -> {
+                //如果为空，那么根据输入法当前的IME信息自动跳转
+                if (action.act == "") {
+                    fcitx.lifecycleScope.launch {
+                        fcitx.runIfReady {
+                            val config = getImConfig(currentIme().uniqueName)
+                            val preferLayout = config.subItems?.asSequence()
+                                ?.flatMap { it.subItems.orEmpty().asSequence() }
+                                ?.firstOrNull { it.name == "PreferKeyboard" }?.value?.let { KeyboardWindow.preferKeyboardMap[it] }
+                            super.onAction(
+                                KeyAction.LayoutSwitchAction(
+                                    preferLayout ?: TextKeyboard.Name
+                                ), source
+                            )
+                        }
+                    }
+                }
+            }
+            else -> super.onAction(action, source)
+        }
+    }
 }

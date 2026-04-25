@@ -304,4 +304,29 @@ object ThemePreset {
         genericActiveForegroundColor = 0xffffffff
     )
 
+    val MTheme = Theme.Builtin(
+        name = "MTheme",
+        isDark = true,
+        backgroundColor = 0xff252525,
+        barColor = 0xff303030,
+        keyboardColor = 0xff252525,
+        keyBackgroundColor = 0xff383838,
+        keyTextColor = 0xffe9e9e9,
+        candidateTextColor = 0xffe9e9e9,
+        candidateLabelColor = 0xffe9e9e9,
+        candidateCommentColor = 0xff969696,
+        altKeyBackgroundColor = 0xff303030,
+        altKeyTextColor = 0xff9c9c9c,
+        accentKeyBackgroundColor = 0xff245658,
+        accentKeyTextColor = 0xffffffff,
+        keyPressHighlightColor = 0x33f5f5f5,
+        keyShadowColor = 0xff080808,
+        popupBackgroundColor = 0xff303030,
+        popupTextColor = 0xffe9e9e9,
+        spaceBarColor = 0xff444444,
+        dividerColor = 0x1affffff,
+        clipboardEntryColor = 0xff404040,
+        genericActiveBackgroundColor = 0xff245658,
+        genericActiveForegroundColor = 0xffe9e9e9
+    )
 }

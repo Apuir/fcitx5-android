@@ -5,9 +5,13 @@
 package org.fcitx.fcitx5.android.input.picker
 
 import android.annotation.SuppressLint
+import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
 import androidx.transition.Transition
 import androidx.viewpager2.widget.ViewPager2
+import kotlinx.coroutines.launch
+import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
@@ -18,6 +22,7 @@ import org.fcitx.fcitx5.android.input.keyboard.KeyAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
+import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
@@ -25,6 +30,7 @@ import org.fcitx.fcitx5.android.input.wm.EssentialWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.mechdancer.dependency.manager.must
+import timber.log.Timber
 
 class PickerWindow(
     override val key: Key,
@@ -34,6 +40,8 @@ class PickerWindow(
     private val popupPreview: Boolean = true,
     private val followKeyBorder: Boolean = true
 ) : InputWindow.ExtendedInputWindow<PickerWindow>(), EssentialWindow {
+
+    private val fcitx = FcitxDaemon.connect(javaClass.name)
 
     enum class Key : EssentialWindow.Key {
         Symbol,
@@ -59,16 +67,11 @@ class PickerWindow(
     private val keyActionListener = KeyActionListener { it, source ->
         when (it) {
             is KeyAction.LayoutSwitchAction -> {
-                // Switch to NumberKeyboard before attaching KeyboardWindow
-                (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
-                    .switchLayout(it.act)
-                // The real switchLayout (detachCurrentLayout and attachLayout) in KeyboardWindow is postponed,
-                // so we have to postpone attachWindow as well
-                ContextCompat.getMainExecutor(context).execute {
-                    windowManager.attachWindow(KeyboardWindow)
-                }
+                onLayoutSwitchAction(it)
             }
-
+            is KeyAction.LangSwitchAction -> {
+                onLayoutSwitchAction(KeyAction.LayoutSwitchAction(),true)
+            }
             is KeyAction.FcitxKeyAction -> {
                 // we want the behavior of CommitAction (commit the character as-is),
                 // but don't want to include it in recently used list
@@ -80,6 +83,43 @@ class PickerWindow(
                     pickerPagesAdapter.insertRecent(it.text)
                 }
                 commonKeyActionListener.listener.onKeyAction(it, source)
+            }
+        }
+    }
+
+    fun onLayoutSwitchAction(it: KeyAction.LayoutSwitchAction,activeNextIme: Boolean = false) {
+        if (it.act != "") {
+            // Switch to NumberKeyboard before attaching KeyboardWindow
+            (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow).switchLayout(
+                it.act
+            )
+            // The real switchLayout (detachCurrentLayout and attachLayout) in KeyboardWindow is postponed,
+            // so we have to postpone attachWindow as well
+            ContextCompat.getMainExecutor(context).execute {
+                windowManager.attachWindow(KeyboardWindow)
+            }
+        } else {
+            fcitx.lifecycleScope.launch {
+                fcitx.runIfReady {
+                    if (activeNextIme){
+                        toggleIme()
+                    }
+                    val config = getImConfig(currentIme().uniqueName)
+                    var preferLayout = config.subItems?.asSequence()
+                        ?.flatMap { it.subItems.orEmpty().asSequence() }
+                        ?.firstOrNull { it.name == "PreferKeyboard" }?.value?.let { KeyboardWindow.preferKeyboardMap[it] }
+                    preferLayout = preferLayout ?: TextKeyboard.Name
+
+                    // Switch to NumberKeyboard before attaching KeyboardWindow
+                    (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow).switchLayout(
+                        preferLayout
+                    )
+                    // The real switchLayout (detachCurrentLayout and attachLayout) in KeyboardWindow is postponed,
+                    // so we have to postpone attachWindow as well
+                    ContextCompat.getMainExecutor(context).execute {
+                        windowManager.attachWindow(KeyboardWindow)
+                    }
+                }
             }
         }
     }
@@ -121,6 +161,10 @@ class PickerWindow(
         }
         pager.apply {
             adapter = pickerPagesAdapter
+
+            //隐藏左右滑动滚动条
+            paginationUi.root.visibility = View.GONE
+
             // show first symbol category by default, rather than recently used
             val range = pickerPagesAdapter.getRangeOfCategoryIndex(1)
             setCurrentItem(range.first, false)
@@ -166,8 +210,14 @@ class PickerWindow(
 
     override fun onAttached() {
         pickerLayout.embeddedKeyboard.also {
+            fcitx.lifecycleScope.launch {
+                fcitx.runIfReady {
+                    it.onInputMethodUpdate(ime = currentIme())
+                }
+            }
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
             it.keyActionListener = keyActionListener
+            it.popupActionListener = popupActionListener
         }
         if (isEmoji) {
             hideUnsupportedEmojisPrefs.registerOnChangeListener(initDataListener!!)

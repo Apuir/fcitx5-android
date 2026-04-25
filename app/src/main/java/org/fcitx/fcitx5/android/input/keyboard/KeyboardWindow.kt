@@ -49,7 +49,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val bar: KawaiiBarComponent by manager.must()
     private val returnKeyDrawable: ReturnKeyDrawableComponent by manager.must()
 
-    companion object : EssentialWindow.Key
+    companion object : EssentialWindow.Key {
+        val preferKeyboardMap = mapOf(
+            "T9" to T9TextKeyboard.Name, "T26" to TextKeyboard.Name
+        )
+    }
 
     override val key: EssentialWindow.Key
         get() = KeyboardWindow
@@ -73,7 +77,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
             NumberKeyboard.Name to NumberKeyboard(context, theme),
-            T9TextKeyboard.Name to T9TextKeyboard(context, theme)
+            T9TextKeyboard.Name to T9TextKeyboard(context, theme),
+            MixNumberKeyboard.Name to MixNumberKeyboard(context,theme)
         )
     }
     private var currentKeyboardName = ""
@@ -88,11 +93,6 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             commonKeyActionListener.listener.onKeyAction(it, source)
         }
     }
-
-    private val preferKeyboardMap = mapOf(
-        "T9" to T9TextKeyboard.Name,
-        "T26" to TextKeyboard.Name
-    )
 
     private val popupActionListener: PopupActionListener by lazy {
         popup.listener

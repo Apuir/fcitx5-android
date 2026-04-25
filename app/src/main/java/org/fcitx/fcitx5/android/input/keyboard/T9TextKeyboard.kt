@@ -9,6 +9,7 @@ import android.content.Context
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.InputMethodEntry
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import timber.log.Timber
@@ -58,10 +59,10 @@ class T9TextKeyboard(
                 MixAlphabetKey("WXYZ", "9"),
                 VoiceKey(),
             ), listOf(
-                LayoutSwitchKey("?123", "", percentWidth = 0.15f),
-                LanguageKey(percentWidth = 0.12f, variant = Variant.Alternative),
+                LayoutSwitchKey("?123", MixNumberKeyboard.Name, percentWidth = 0.15f, textSize = 15f),
+                LanguageKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 SpaceKey(),
-                SymbolKey(".", 0.12f, Variant.Alternative),
+                CommaKey(".",0.15f, Variant.Alternative),
                 ReturnKey(percentWidth = 0.15f)
             )
         )

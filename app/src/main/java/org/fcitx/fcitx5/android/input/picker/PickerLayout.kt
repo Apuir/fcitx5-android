@@ -8,9 +8,14 @@ import android.annotation.SuppressLint
 import android.content.Context
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.viewpager2.widget.ViewPager2
+import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.core.InputMethodEntry
+import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.*
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.above
 import splitties.views.dsl.constraintlayout.below
@@ -22,6 +27,8 @@ import splitties.views.dsl.constraintlayout.topOfParent
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.view
 import splitties.views.imageResource
+import timber.log.Timber
+import kotlin.text.ifEmpty
 
 @SuppressLint("ViewConstructor")
 class PickerLayout(context: Context, theme: Theme, switchKey: KeyDef) :
@@ -30,32 +37,27 @@ class PickerLayout(context: Context, theme: Theme, switchKey: KeyDef) :
     class Keyboard(context: Context, theme: Theme, switchKey: KeyDef) : BaseKeyboard(
         context, theme, listOf(
             listOf(
-                LayoutSwitchKey("ABC", TextKeyboard.Name),
-                PunctuationKey(","),
-                switchKey,
+                LayoutSwitchKey("Abc", "", percentWidth = 0.15f, textSize = 15f),
+                LanguageKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 SpaceKey(),
-                PunctuationKey("."),
-                ReturnKey()
+                SimpleCommaKey(".",0.15f, Variant.Alternative),
+                ReturnKey(percentWidth = 0.15f)
             )
         )
     ) {
-
-        class PunctuationKey(val symbol: String) : KeyDef(
-            Appearance.Text(
-                displayText = symbol,
-                textSize = 23f,
-                percentWidth = 0.1f,
-                variant = Appearance.Variant.Alternative
-            ),
-            setOf(
-                Behavior.Press(KeyAction.FcitxKeyAction(symbol))
-            )
-        )
-
         val `return`: ImageKeyView by lazy { findViewById(R.id.button_return) }
+
+        val space: TextKeyView by lazy { findViewById(R.id.button_space) }
 
         override fun onReturnDrawableUpdate(returnDrawable: Int) {
             `return`.img.imageResource = returnDrawable
+        }
+
+        override fun onInputMethodUpdate(ime: InputMethodEntry) {
+            space.mainText.text = buildString {
+                append(ime.displayName)
+                ime.subMode.run { label.ifEmpty { name.ifEmpty { null } } }?.let { append(" [$it] ") }
+            }
         }
     }
 

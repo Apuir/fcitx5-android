@@ -172,6 +172,9 @@ class CommonKeyActionListener :
                     backspaceSwipeState = Stopped
                 }
                 is PickerSwitchAction -> {
+                    service.postFcitxJob {
+                        reset()
+                    }
                     // update lastSymbolType only when specified explicitly
                     val key = action.key?.also { k -> lastPickerType = k.name }
                         ?: runCatching { PickerWindow.Key.valueOf(lastPickerType) }.getOrNull()

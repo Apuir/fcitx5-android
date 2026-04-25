@@ -33,6 +33,7 @@ object ThemeManager {
         ThemePreset.DeepBlue,
         ThemePreset.Monokai,
         ThemePreset.AMOLEDBlack,
+        ThemePreset.MTheme,
     )
 
     val DefaultTheme = ThemePreset.PixelDark

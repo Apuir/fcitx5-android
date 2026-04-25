@@ -29,6 +29,7 @@ android {
 
     buildTypes {
         release {
+            isShrinkResources = false
             resValue("string", "app_name", "@string/app_name_release")
             proguardFile("proguard-rules.pro")
         }

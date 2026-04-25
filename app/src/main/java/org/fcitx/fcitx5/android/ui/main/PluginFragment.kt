@@ -11,12 +11,23 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceScreen
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.fcitx.fcitx5.android.R
@@ -29,6 +40,28 @@ import org.fcitx.fcitx5.android.utils.addCategory
 import org.fcitx.fcitx5.android.utils.addPreference
 
 class PluginFragment : PaddingPreferenceFragment() {
+
+    private data class PluginItem(
+        val name: String,
+        val description: String,
+        val downloadUrl: String,
+    )
+
+    private val pluginStore = listOf(
+        PluginItem(
+            name = "Rime Plugin",
+            description = "中文输入与自定义方案支持",
+            downloadUrl = "https://example.com/rime.apk"
+        ), PluginItem(
+            name = "Clipboard Plugin",
+            description = "剪贴板历史记录支持",
+            downloadUrl = "https://example.com/clipboard.apk"
+        ), PluginItem(
+            name = "Theme Plugin",
+            description = "额外主题支持",
+            downloadUrl = "https://example.com/theme.apk"
+        )
+    )
 
     private var firstRun = true
 
@@ -100,6 +133,116 @@ class PluginFragment : PaddingPreferenceFragment() {
         super.onPause()
         requireContext().unregisterReceiver(packageChangeReceiver)
     }
+
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val root = view as? ViewGroup ?: return
+
+        val fab = FloatingActionButton(requireContext()).apply {
+            setImageResource(R.drawable.ic_baseline_plus_24)
+
+            imageTintList = ColorStateList.valueOf(Color.BLACK)
+
+            setOnClickListener {
+                showPluginDialog()
+            }
+        }
+
+        val margin = (16 * resources.displayMetrics.density).toInt()
+
+        root.addView(
+            fab,
+            ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(margin, margin, margin, margin)
+            }
+        )
+
+        root.post {
+            fab.x = (root.width - fab.width - margin).toFloat()
+            fab.y = (root.height - fab.height - margin).toFloat()
+        }
+    }
+
+    private fun showPluginDialog() {
+        val maxHeight = (400 * resources.displayMetrics.density).toInt()
+        val scrollView = ScrollView(requireContext()).apply {
+            isFillViewport = true
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                maxHeight
+            )
+        }
+
+        val listContainer = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                32,
+                32,
+                32,
+                32
+            )
+        }
+
+        pluginStore.forEach { plugin ->
+            val row = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(
+                    24,
+                    24,
+                    24,
+                    24
+                )
+            }
+            val textContainer = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+            val textParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+
+            val title = TextView(requireContext()).apply {
+                text = plugin.name
+                textSize = 16f
+                setTypeface(typeface, Typeface.BOLD)
+            }
+
+            val description = TextView(requireContext()).apply {
+                text = plugin.description
+                textSize = 14f
+            }
+
+            textContainer.addView(title)
+            textContainer.addView(description)
+
+            val downloadButton = Button(requireContext()).apply {
+                text = "下载"
+                setOnClickListener {
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse(plugin.downloadUrl)
+                        }
+                    )
+                }
+            }
+            row.addView(textContainer, textParams)
+            row.addView(downloadButton)
+            listContainer.addView(row)
+        }
+        scrollView.addView(listContainer)
+        AlertDialog.Builder(requireContext())
+            .setTitle("插件市场")
+            .setView(scrollView)
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
 
     private fun createPreferenceScreen(): PreferenceScreen =
         preferenceManager.createPreferenceScreen(requireContext()).apply {

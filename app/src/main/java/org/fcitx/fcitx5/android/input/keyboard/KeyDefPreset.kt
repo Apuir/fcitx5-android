@@ -27,17 +27,11 @@ class SymbolKey(
     popup: Array<Popup>? = null
 ) : KeyDef(
     Appearance.Text(
-        displayText = symbol,
-        textSize = 23f,
-        percentWidth = percentWidth,
-        variant = variant
-    ),
-    setOf(
+        displayText = symbol, textSize = 23f, percentWidth = percentWidth, variant = variant
+    ), setOf(
         Behavior.Press(KeyAction.FcitxKeyAction(symbol))
-    ),
-    popup ?: arrayOf(
-        Popup.Preview(symbol),
-        Popup.Keyboard(symbol)
+    ), popup ?: arrayOf(
+        Popup.Preview(symbol), Popup.Keyboard(symbol)
     )
 )
 
@@ -48,16 +42,11 @@ class AlphabetKey(
     popup: Array<Popup>? = null
 ) : KeyDef(
     Appearance.AltText(
-        displayText = character,
-        altText = punctuation,
-        textSize = 23f,
-        variant = variant
-    ),
-    setOf(
+        displayText = character, altText = punctuation, textSize = 23f, variant = variant
+    ), setOf(
         Behavior.Press(KeyAction.FcitxKeyAction(character)),
         Behavior.Swipe(KeyAction.FcitxKeyAction(punctuation))
-    ),
-    popup ?: arrayOf(
+    ), popup ?: arrayOf(
         Popup.Keyboard(character)
     )
 )
@@ -91,14 +80,18 @@ class PinYinCandidateKey(
 )
 
 class CommitKey(
-    content: String
+    content: String,
+    textSize: Float = 18f,
+    border: Border = Border.Off,
+    percentWidth: Float = 0.15f,
+    variant: Variant = Variant.Alternative,
 ) : KeyDef(
     Appearance.Text(
         content,
-        textSize = 15f,
-        percentWidth = 0.15f,
-        variant = Variant.Normal,
-        border = Border.Off,
+        textSize = textSize,
+        percentWidth = percentWidth,
+        variant = variant,
+        border = border,
         visibility = View.VISIBLE,
     ),
     setOf(
@@ -124,11 +117,10 @@ open class MixAlphabetKey(
         variant = variant,
         percentWidth = percentWidth,
         visibility = visibility,
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.FcitxKeyAction(punctuation)),
-    ),
-    popup ?: arrayOf(
+        Behavior.Swipe(KeyAction.CommitAction(punctuation))
+    ), popup ?: arrayOf(
         Popup.Keyboard(punctuation)
     )
 )
@@ -143,42 +135,27 @@ class ColumnKey(
         children = children,
         variant = variant,
         percentWidth = percentWidth,
-    ),
-    setOf(
-    ),
-    popup ?: arrayOf(
+    ), setOf(
+    ), popup ?: arrayOf(
     )
 )
 
 class AlphabetDigitKey(
-    val character: String,
-    altText: String,
-    val sym: Int,
-    popup: Array<Popup>? = null
+    val character: String, altText: String, val sym: Int, popup: Array<Popup>? = null
 ) : KeyDef(
     Appearance.AltText(
-        displayText = character,
-        altText = altText,
-        textSize = 23f
-    ),
-    setOf(
+        displayText = character, altText = altText, textSize = 23f
+    ), setOf(
         Behavior.Press(KeyAction.FcitxKeyAction(character)),
         Behavior.Swipe(KeyAction.SymAction(KeySym(sym), NumLockState))
-    ),
-    popup ?: arrayOf(
-        Popup.AltPreview(character, altText),
-        Popup.Keyboard(character)
+    ), popup ?: arrayOf(
+        Popup.AltPreview(character, altText), Popup.Keyboard(character)
     )
 ) {
     constructor(
-        char: String,
-        digit: Int,
-        popup: Array<Popup>? = null
+        char: String, digit: Int, popup: Array<Popup>? = null
     ) : this(
-        char,
-        digit.toString(),
-        FcitxKeyMapping.FcitxKey_KP_0 + digit,
-        popup
+        char, digit.toString(), FcitxKeyMapping.FcitxKey_KP_0 + digit, popup
     )
 }
 
@@ -188,8 +165,7 @@ class CapsKey : KeyDef(
         viewId = R.id.button_caps,
         percentWidth = 0.15f,
         variant = Variant.Alternative
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.CapsAction(false)),
         Behavior.LongPress(KeyAction.CapsAction(true)),
         Behavior.DoubleTap(KeyAction.CapsAction(true))
@@ -200,23 +176,22 @@ class LayoutSwitchKey(
     displayText: String,
     val to: String = "",
     percentWidth: Float = 0.15f,
-    variant: Variant = Variant.Alternative
+    variant: Variant = Variant.Alternative,
+    textSize: Float = 16f
 ) : KeyDef(
     Appearance.Text(
         displayText,
-        textSize = 16f,
+        textSize = textSize,
         textStyle = Typeface.BOLD,
         percentWidth = percentWidth,
         variant = variant
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.LayoutSwitchAction(to))
     )
 )
 
 class BackspaceKey(
-    percentWidth: Float = 0.15f,
-    variant: Variant = Variant.Alternative
+    percentWidth: Float = 0.15f, variant: Variant = Variant.Alternative
 ) : KeyDef(
     Appearance.Image(
         src = R.drawable.ic_baseline_backspace_24,
@@ -224,8 +199,7 @@ class BackspaceKey(
         variant = variant,
         viewId = R.id.button_backspace,
         soundEffect = InputFeedbacks.SoundEffect.Delete
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_BackSpace))),
         Behavior.Repeat(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_BackSpace)))
     )
@@ -233,24 +207,17 @@ class BackspaceKey(
 
 
 class ClearKey(
-    displayText: String,
-    percentWidth: Float = 0.18f,
-    variant: Variant = Variant.Alternative
+    displayText: String, percentWidth: Float = 0.18f, variant: Variant = Variant.Alternative
 ) : KeyDef(
     Appearance.Text(
-        displayText,
-        textSize = 16f,
-        percentWidth = percentWidth,
-        variant = variant
-    ),
-    setOf(
+        displayText, textSize = 16f, percentWidth = percentWidth, variant = variant
+    ), setOf(
         Behavior.Press(KeyAction.ClearAction)
     )
 )
 
 class VoiceKey(
-    percentWidth: Float = 0.15f,
-    variant: Variant = Variant.Alternative
+    percentWidth: Float = 0.15f, variant: Variant = Variant.Alternative
 ) : KeyDef(
     Appearance.Image(
         src = R.drawable.ic_baseline_keyboard_voice_24,
@@ -258,8 +225,7 @@ class VoiceKey(
         variant = variant,
         viewId = R.id.button_voice,
         soundEffect = InputFeedbacks.SoundEffect.Standard
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.VoiceAction),
     )
 )
@@ -270,62 +236,89 @@ class QuickPhraseKey : KeyDef(
         src = R.drawable.ic_baseline_format_quote_24,
         variant = Variant.Alternative,
         viewId = R.id.button_quickphrase
-    ),
-    setOf(
-        Behavior.Press(KeyAction.QuickPhraseAction),
-        Behavior.LongPress(KeyAction.UnicodeAction)
+    ), setOf(
+        Behavior.Press(KeyAction.QuickPhraseAction), Behavior.LongPress(KeyAction.UnicodeAction)
     )
 )
 
 class CommaKey(
+    displayText: String = ",",
     percentWidth: Float,
     variant: Variant,
 ) : KeyDef(
     Appearance.ImageText(
-        displayText = ",",
+        displayText = displayText,
         textSize = 23f,
         percentWidth = percentWidth,
         variant = variant,
         src = R.drawable.ic_baseline_tag_faces_24
-    ),
-    setOf(
-        Behavior.Press(KeyAction.FcitxKeyAction(","))
-    ),
-    arrayOf(
-        Popup.Preview(","),
-        Popup.Menu(
+    ), setOf(
+        Behavior.Press(KeyAction.CommitAction(displayText))
+    ), arrayOf(
+        Popup.Preview(displayText), Popup.Menu(
             arrayOf(
                 Popup.Menu.Item(
-                    "Emoji",
-                    R.drawable.ic_baseline_tag_faces_24,
-                    KeyAction.PickerSwitchAction()
+                    "Symbol", R.drawable.ic_baseline_emoji_symbols_24, KeyAction.PickerSwitchAction(
+                        PickerWindow.Key.Symbol
+                    )
                 ),
                 Popup.Menu.Item(
+                    "Emoji", R.drawable.ic_baseline_tag_faces_24, KeyAction.PickerSwitchAction(
+                        PickerWindow.Key.Emoji,
+                    )
+                ), Popup.Menu.Item(
                     "QuickPhrase",
                     R.drawable.ic_baseline_format_quote_24,
                     KeyAction.QuickPhraseAction
-                ),
-                Popup.Menu.Item(
-                    "Unicode",
-                    R.drawable.ic_logo_unicode,
-                    KeyAction.UnicodeAction
+                ), Popup.Menu.Item(
+                    "Unicode", R.drawable.ic_logo_unicode, KeyAction.UnicodeAction
                 )
             )
         )
     )
 )
 
+
+class SimpleCommaKey(
+    displayText: String = ",",
+    percentWidth: Float,
+    variant: Variant,
+) : KeyDef(
+    Appearance.ImageText(
+        displayText = displayText,
+        textSize = 23f,
+        percentWidth = percentWidth,
+        variant = variant,
+        src = R.drawable.ic_baseline_tag_faces_24
+    ), setOf(
+        Behavior.Press(KeyAction.CommitAction(displayText))
+    ), arrayOf(
+        Popup.Preview(displayText), Popup.Menu(
+            arrayOf(
+                Popup.Menu.Item(
+                    "Symbol", R.drawable.ic_baseline_emoji_symbols_24, KeyAction.PickerSwitchAction(
+                        PickerWindow.Key.Symbol
+                    )
+                ),
+                Popup.Menu.Item(
+                    "Emoji", R.drawable.ic_baseline_tag_faces_24, KeyAction.PickerSwitchAction(
+                        PickerWindow.Key.Emoji,
+                    )
+                ),
+            )
+        )
+    )
+)
+
 class LanguageKey(
-    percentWidth: Float = 0f,
-    variant: Variant = Variant.Alternative
+    percentWidth: Float = 0f, variant: Variant = Variant.Alternative
 ) : KeyDef(
     Appearance.Image(
         percentWidth = percentWidth,
         src = R.drawable.ic_baseline_language_24,
         variant = variant,
         viewId = R.id.button_lang,
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.LangSwitchAction),
         Behavior.LongPress(KeyAction.ShowInputMethodPickerAction)
     )
@@ -333,6 +326,7 @@ class LanguageKey(
 
 class SpaceKey(
     percentWidth: Float = 0f,
+    variant: Variant =  Variant.Alternative
 ) : KeyDef(
     Appearance.Text(
         displayText = " ",
@@ -340,9 +334,9 @@ class SpaceKey(
         percentWidth = percentWidth,
         border = Border.Special,
         viewId = R.id.button_space,
-        soundEffect = InputFeedbacks.SoundEffect.SpaceBar
-    ),
-    setOf(
+        soundEffect = InputFeedbacks.SoundEffect.SpaceBar,
+        variant = variant
+    ), setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_space))),
         Behavior.LongPress(KeyAction.SpaceLongPressAction)
     )
@@ -372,39 +366,29 @@ class ReturnKey(percentWidth: Float = 0.15f) : KeyDef(
 )
 
 class ImageLayoutSwitchKey(
-    @DrawableRes
-    icon: Int,
+    @DrawableRes icon: Int,
     to: String,
     percentWidth: Float = 0.1f,
     variant: Variant = Variant.AltForeground,
     viewId: Int = -1
 ) : KeyDef(
     Appearance.Image(
-        src = icon,
-        percentWidth = percentWidth,
-        variant = variant,
-        viewId = viewId
-    ),
-    setOf(
+        src = icon, percentWidth = percentWidth, variant = variant, viewId = viewId
+    ), setOf(
         Behavior.Press(KeyAction.LayoutSwitchAction(to))
     )
 )
 
 class ImagePickerSwitchKey(
-    @DrawableRes
-    icon: Int,
+    @DrawableRes icon: Int,
     to: PickerWindow.Key,
     percentWidth: Float = 0.1f,
     variant: Variant = Variant.AltForeground,
     viewId: Int = -1
 ) : KeyDef(
     Appearance.Image(
-        src = icon,
-        percentWidth = percentWidth,
-        variant = variant,
-        viewId = viewId
-    ),
-    setOf(
+        src = icon, percentWidth = percentWidth, variant = variant, viewId = viewId
+    ), setOf(
         Behavior.Press(KeyAction.PickerSwitchAction(to))
     )
 )
@@ -423,20 +407,18 @@ class TextPickerSwitchKey(
         variant = variant,
         viewId = viewId,
         textStyle = Typeface.BOLD
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.PickerSwitchAction(to))
     )
 )
 
-class MiniSpaceKey : KeyDef(
+class MiniSpaceKey(percentWidth: Float = 0.15f) : KeyDef(
     Appearance.Image(
         src = R.drawable.ic_baseline_space_bar_24,
-        percentWidth = 0.15f,
+        percentWidth = percentWidth,
         variant = Variant.Alternative,
         viewId = R.id.button_mini_space
-    ),
-    setOf(
+    ), setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_space)))
     )
 )
@@ -449,12 +431,8 @@ class NumPadKey(
     variant: Variant = Variant.Normal
 ) : KeyDef(
     Appearance.Text(
-        displayText,
-        textSize = textSize,
-        percentWidth = percentWidth,
-        variant = variant
-    ),
-    setOf(
+        displayText, textSize = textSize, percentWidth = percentWidth, variant = variant
+    ), setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(sym), NumLockState))
     )
 )

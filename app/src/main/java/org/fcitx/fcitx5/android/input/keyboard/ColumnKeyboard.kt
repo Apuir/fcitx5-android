@@ -130,7 +130,6 @@ open class ColumnKeyboard(
             }
             is FcitxEvent.InputPanelEvent -> {
                 composingPreedit = event.data.preedit.toString()
-
                 fcitx.lifecycleScope.launch {
                     fcitx.runIfReady {
                         val input = getRimeInput()
@@ -233,29 +232,28 @@ open class ColumnKeyboard(
         }
     }
 
-    fun buildPossibleCombinations(currentInput: String, confirmedPosition: Int): List<KeyDef> {
+    fun buildPossibleCombinations(currentInput: String, confirmedLen: Int): List<KeyDef> {
         if (inputQueue.isNotEmpty()) {
-            var position = confirmedPosition
             val keys = mutableListOf<KeyDef>()
-            if (confirmedPosition > 0) {
-                currentInput.forEachIndexed { index, char ->
-                    val raw = inputQueue.getOrNull(index).toString()
-                    if (char == segmentKeyChar && segmentKeyChar.toString() != raw && index < confirmedPosition) {
-                        position -= 1
+            //因为手动选择拼音插入分割符的缘故，此处需要先修正已确认的内容长度
+            var len = confirmedLen
+            var index = 0
+            if (len > 0) {
+                currentInput.forEachIndexed { i, char ->
+                    if (i >= confirmedLen) {
+                        return@forEachIndexed
                     }
+                    val raw = inputQueue.getOrNull(index).toString()
+                    if (char == segmentKeyChar && segmentKeyChar.toString() != raw) {
+                        len -= 1
+                        index += 1
+                    }
+                    index += 1
                 }
             }
-            var lastEnd = -1
-            selectedQueue.forEach { action ->
-                val end = action.pos + action.raw.length
-                if (position < end) {
-                    position += action.raw.length
-                }
-                //看两次选中的内容是否是临近，如果不是需要额外补偿
-                if (lastEnd != -1 && action.pos - lastEnd > 1) {
-                    position += (action.pos - lastEnd) - 1
-                }
-                lastEnd = end
+            val position = nextSequencePosition(len)
+            if (position < 0) {
+                return emptyList()
             }
             val sequence = inputQueue.joinToString("").substring(position)
             T9PinYin.possibleCombinations(sequence).forEach { pinYin ->
@@ -269,6 +267,38 @@ open class ColumnKeyboard(
             return keys
         }
         return emptyList()
+    }
+
+    fun nextSequencePosition(
+        confirmedLen: Int,
+    ): Int {
+        val inputSize = inputQueue.size
+        val ranges =
+            selectedQueue.map { it.pos until (it.pos + it.raw.length) }.sortedBy { it.first }
+        // ❗1. 合法性检查：confirmedLen 不能在任何区间内部
+        for (r in ranges) {
+            for (r in ranges) {
+                if (confirmedLen > r.first && confirmedLen < r.last + 1) {
+                    return -1
+                }
+            }
+        }
+        // ❗2. 从 confirmedLen 开始找 next free position
+        var pos = confirmedLen.coerceIn(0, inputSize)
+        while (pos < inputSize) {
+            var jumped = false
+            for (r in ranges) {
+                if (pos in r) {
+                    // 如果 confirmedLen 或当前位置落在已 token 区间，
+                    // 直接跳到区间末尾
+                    pos = r.last + 1
+                    jumped = true
+                    break
+                }
+            }
+            if (!jumped) return pos
+        }
+        return inputSize
     }
 
     fun buildRimeInput(): String {
