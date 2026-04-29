@@ -27,3 +27,30 @@ fun ZipInputStream.extract(destDir: File): List<File> {
     }
     return destDir.listFiles()?.toList() ?: emptyList()
 }
+
+
+fun ZipInputStream.autoExtract(destDir: File): List<File> {
+    var entry = nextEntry
+    val canonicalDest = destDir.canonicalPath
+    while (entry != null) {
+        if (!entry.isDirectory) {
+            val file = File(destDir, entry.name)
+            file.parentFile?.mkdirs()
+            if (!file.canonicalPath.startsWith(
+                    canonicalDest
+                )
+            ) {
+                throw SecurityException()
+            }
+            file.outputStream().use {
+                copyTo(it)
+            }
+        } else {
+            val dir = File(destDir, entry.name)
+            dir.mkdirs()
+        }
+        closeEntry()
+        entry = nextEntry
+    }
+    return destDir.listFiles()?.toList() ?: emptyList()
+}

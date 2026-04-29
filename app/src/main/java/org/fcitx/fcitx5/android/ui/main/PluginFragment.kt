@@ -24,6 +24,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.Keep
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceScreen
@@ -36,34 +37,30 @@ import org.fcitx.fcitx5.android.core.data.FileSource
 import org.fcitx.fcitx5.android.core.data.PluginLoadFailed
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.ui.common.PaddingPreferenceFragment
+import org.fcitx.fcitx5.android.utils.Command
 import org.fcitx.fcitx5.android.utils.HttpClient
 import org.fcitx.fcitx5.android.utils.addCategory
 import org.fcitx.fcitx5.android.utils.addPreference
+import org.fcitx.fcitx5.android.utils.autoExtract
+import org.fcitx.fcitx5.android.utils.extract
+import timber.log.Timber
 import java.io.File
+import java.io.FileInputStream
+import java.util.zip.ZipInputStream
+
+
+@Keep
+data class PluginItem(
+    val pluginName: String,
+    val pluginDesc: String,
+    val pluginResource: String,
+    val pluginBtn: String
+)
 
 class PluginFragment : PaddingPreferenceFragment() {
 
-    private data class PluginItem(
-        val name: String,
-        val description: String,
-        val downloadUrl: String,
-    )
 
-    private val pluginStore = listOf(
-        PluginItem(
-            name = "Rime Plugin",
-            description = "中文输入与自定义方案支持",
-            downloadUrl = "https://example.com/rime.apk"
-        ), PluginItem(
-            name = "Clipboard Plugin",
-            description = "剪贴板历史记录支持",
-            downloadUrl = "https://example.com/clipboard.apk"
-        ), PluginItem(
-            name = "Theme Plugin",
-            description = "额外主题支持",
-            downloadUrl = "https://example.com/theme.apk"
-        )
-    )
+    private var pluginStore: List<PluginItem> = emptyList()
 
     private var firstRun = true
 
@@ -93,7 +90,9 @@ class PluginFragment : PaddingPreferenceFragment() {
         }
     }
 
-    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+    override fun onCreatePreferences(
+        savedInstanceState: Bundle?, rootKey: String?
+    ) {
         DataManager.whenSynced {
             synced = DataManager.getSyncedPluginSet()
             detected = DataManager.detectPlugins()
@@ -136,14 +135,18 @@ class PluginFragment : PaddingPreferenceFragment() {
         requireContext().unregisterReceiver(packageChangeReceiver)
     }
 
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View, savedInstanceState: Bundle?
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         val root = view as? ViewGroup ?: return
 
         val fab = FloatingActionButton(requireContext()).apply {
-            setImageResource(R.drawable.ic_baseline_plus_24)
+
+            setImageResource(
+                R.drawable.ic_baseline_plus_24
+            )
 
             imageTintList = ColorStateList.valueOf(Color.BLACK)
 
@@ -155,38 +158,52 @@ class PluginFragment : PaddingPreferenceFragment() {
         val margin = (16 * resources.displayMetrics.density).toInt()
 
         root.addView(
-            fab,
-            ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+            fab, ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(margin, margin, margin, margin)
-            }
-        )
+                setMargins(
+                    margin, margin, margin, margin
+                )
+            })
 
         root.post {
             fab.x = (root.width - fab.width - margin).toFloat()
+
             fab.y = (root.height - fab.height - margin).toFloat()
         }
     }
 
     private fun showPluginDialog() {
+        lifecycleScope.launch {
+            val result = HttpClient.get<Array<PluginItem>>(
+                "http://182.92.128.250/plugins/metadata.json"
+            )
+            result.onSuccess { plugins ->
+                pluginStore = plugins.toList()
+                showPluginDialogInternal()
+            }.onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("错误").setMessage(
+                    it.message ?: "加载失败"
+                ).setPositiveButton(
+                    "确定", null
+                ).show()
+            }
+        }
+    }
+
+    private fun showPluginDialogInternal() {
         val maxHeight = (400 * resources.displayMetrics.density).toInt()
         val scrollView = ScrollView(requireContext()).apply {
             isFillViewport = true
             layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                maxHeight
+                ViewGroup.LayoutParams.MATCH_PARENT, maxHeight
             )
         }
 
         val listContainer = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(
-                32,
-                32,
-                32,
-                32
+                32, 32, 32, 32
             )
         }
 
@@ -194,62 +211,84 @@ class PluginFragment : PaddingPreferenceFragment() {
             val row = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(
-                    24,
-                    24,
-                    24,
-                    24
+                    24, 24, 24, 24
                 )
             }
             val textContainer = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
             }
             val textParams = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
             )
-
             val title = TextView(requireContext()).apply {
-                text = plugin.name
-                textSize = 16f
-                setTypeface(typeface, Typeface.BOLD)
+                text = plugin.pluginName
+                textSize = 14f
+                setTypeface(
+                    typeface, Typeface.BOLD
+                )
             }
 
             val description = TextView(requireContext()).apply {
-                text = plugin.description
-                textSize = 14f
+                text = plugin.pluginDesc
+                textSize = 12f
             }
 
             textContainer.addView(title)
             textContainer.addView(description)
 
             val downloadButton = Button(requireContext()).apply {
-                text = "下载"
+                text = plugin.pluginBtn
                 setOnClickListener {
-                    val button = this@apply
+                    val button = this
                     isEnabled = false
                     lifecycleScope.launch {
-                        val file = File(
-                            requireContext().getExternalFilesDir(null),
-                            "Battle.net-Setup-CN.zip"
-                        )
-                        HttpClient.download(
-                            url = "https://downloader.battlenet.com.cn/download/installer/mac/1.0.63/Battle.net-Setup-CN.zip",
-                            targetFile = file,
-                            onProgress = { current, total ->
-                                val progress = if (total > 0) {
-                                    (current * 100 / total).toInt()
-                                } else {
-                                    0
-                                }
-                                button.post {
-                                    button.text = "$progress%"
-                                }
-                            }).onSuccess {
+                        try {
+                            val fileName = plugin.pluginResource.substringAfterLast(
+                                "/"
+                            )
+                            val zipFile = File(
+                                requireContext().getExternalFilesDir(
+                                    null
+                                ), "download/$fileName"
+                            )
+                            if (!zipFile.exists()) {
+                                HttpClient.download(
+                                    url = plugin.pluginResource,
+                                    targetFile = zipFile,
+                                    onProgress = { current, total ->
+                                        val progress = if (total > 0) {
+                                            (current * 100 / total).toInt()
+                                        } else {
+                                            0
+                                        }
+                                        button.post {
+                                            button.text = " $progress%"
+                                        }
+                                    }
+
+                                ).getOrThrow()
+                            }
+                            val name = fileName.removeSuffix(".zip")
+                            val outputDir = File(
+                                requireContext().getExternalFilesDir(null),
+                                "download/$name"
+                            )
+                            ZipInputStream(
+                                FileInputStream(zipFile)
+                            ).use { zip ->
+                                zip.autoExtract(outputDir)
+                            }
+                            val commands = Command.parse(
+                                File(outputDir, "metadata.json")
+                            )
+                            commands.forEach {
+                                it.execute(requireContext(), outputDir)
+                            }
                             button.post {
                                 button.text = "完成"
                             }
-                        }.onFailure {
+                        } catch (e: Throwable) {
+                            Timber.d("eeeee %s",e.message)
                             button.post {
                                 button.text = "失败"
                                 button.isEnabled = true
@@ -258,19 +297,16 @@ class PluginFragment : PaddingPreferenceFragment() {
                     }
                 }
             }
-
-            row.addView(textContainer, textParams)
+            row.addView(
+                textContainer, textParams
+            )
             row.addView(downloadButton)
             listContainer.addView(row)
         }
         scrollView.addView(listContainer)
-        AlertDialog.Builder(requireContext())
-            .setTitle("插件市场")
-            .setView(scrollView)
-            .setNegativeButton("关闭", null)
-            .show()
+        AlertDialog.Builder(requireContext()).setTitle("插件市场").setView(scrollView)
+            .setNegativeButton("关闭", null).show()
     }
-
 
     private fun createPreferenceScreen(): PreferenceScreen =
         preferenceManager.createPreferenceScreen(requireContext()).apply {
@@ -300,74 +336,136 @@ class PluginFragment : PaddingPreferenceFragment() {
             if (loaded.isNotEmpty()) {
                 addCategory(R.string.plugins_loaded) {
                     isIconSpaceReserved = false
+
                     loaded.forEach {
-                        addPreference(it.name, "${it.versionName}\n${it.description}") {
-                            startPluginAboutActivity(it.packageName)
+
+                        addPreference(
+                            it.name, "${it.versionName}\n${it.description}"
+                        ) {
+                            startPluginAboutActivity(
+                                it.packageName
+                            )
                         }
                     }
                 }
             }
+
             if (failed.isNotEmpty()) {
-                addCategory(R.string.plugins_failed) {
+
+                addCategory(
+                    R.string.plugins_failed
+                ) {
+
                     isIconSpaceReserved = false
+
                     failed.forEach { (packageName, reason) ->
+
                         val summary = when (reason) {
+
                             is PluginLoadFailed.DataDescriptorParseError -> {
-                                getString(R.string.invalid_data_descriptor)
+
+                                getString(
+                                    R.string.invalid_data_descriptor
+                                )
                             }
+
                             is PluginLoadFailed.MissingDataDescriptor -> {
-                                getString(R.string.missing_data_descriptor)
+
+                                getString(
+                                    R.string.missing_data_descriptor
+                                )
                             }
+
                             PluginLoadFailed.MissingPluginDescriptor -> {
-                                getString(R.string.missing_plugin_descriptor)
+
+                                getString(
+                                    R.string.missing_plugin_descriptor
+                                )
                             }
+
                             is PluginLoadFailed.PathConflict -> {
+
                                 val owner = when (reason.existingSrc) {
-                                    FileSource.Main -> getString(R.string.main_program)
+
+                                    FileSource.Main -> getString(
+                                        R.string.main_program
+                                    )
+
                                     is FileSource.Plugin -> reason.existingSrc.descriptor.name
                                 }
-                                getString(R.string.path_conflict, reason.path, owner)
+
+                                getString(
+                                    R.string.path_conflict, reason.path, owner
+                                )
                             }
+
                             is PluginLoadFailed.PluginAPIIncompatible -> {
-                                getString(R.string.incompatible_api, reason.api)
+
+                                getString(
+                                    R.string.incompatible_api, reason.api
+                                )
                             }
+
                             PluginLoadFailed.PluginDescriptorParseError -> {
-                                getString(R.string.invalid_plugin_descriptor)
+
+                                getString(
+                                    R.string.invalid_plugin_descriptor
+                                )
                             }
                         }
-                        addPreference(packageName, summary) {
-                            startPluginAboutActivity(packageName)
+
+                        addPreference(
+                            packageName, summary
+                        ) {
+                            startPluginAboutActivity(
+                                packageName
+                            )
                         }
                     }
                 }
             }
         }
 
-    private fun startPluginAboutActivity(pkg: String): Boolean {
+    private fun startPluginAboutActivity(
+        pkg: String
+    ): Boolean {
+
         val ctx = requireContext()
+
         val pm = ctx.packageManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             pm.queryIntentActivities(
                 Intent(DataManager.PLUGIN_INTENT),
-                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_ALL.toLong())
+
+                PackageManager.ResolveInfoFlags.of(
+                    PackageManager.MATCH_ALL.toLong()
+                )
             )
         } else {
-            pm.queryIntentActivities(Intent(DataManager.PLUGIN_INTENT), PackageManager.MATCH_ALL)
+            pm.queryIntentActivities(
+                Intent(DataManager.PLUGIN_INTENT), PackageManager.MATCH_ALL
+            )
         }.firstOrNull {
             it.activityInfo.packageName == pkg
         }?.also {
-            ctx.startActivity(Intent().apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                component = ComponentName(it.activityInfo.packageName, it.activityInfo.name)
-            })
+            ctx.startActivity(
+                Intent().apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    component = ComponentName(
+                        it.activityInfo.packageName, it.activityInfo.name
+                    )
+                })
         } ?: run {
-            // fallback to settings app info page if activity not found
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                data = Uri.fromParts("package", pkg, null)
-            })
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    data = Uri.fromParts(
+                        "package", pkg, null
+                    )
+                })
         }
         return true
     }
-
 }
