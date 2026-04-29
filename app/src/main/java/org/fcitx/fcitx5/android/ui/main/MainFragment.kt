@@ -77,17 +77,17 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
                 addDestinationPreference(
                     R.string.clipboard,
-                    R.drawable.ic_clipboard,
+                    R.drawable.ic_clipboard2,
                     SettingsRoute.Clipboard
                 )
                 addDestinationPreference(
                     R.string.emoji_and_symbols,
-                    R.drawable.ic_baseline_emoji_symbols_24,
+                    R.drawable.ic_baseline_at_24,
                     SettingsRoute.Symbol
                 )
                 addDestinationPreference(
                     R.string.plugins,
-                    R.drawable.ic_baseline_android_24,
+                    R.drawable.ic_baseline_extension_24,
                     SettingsRoute.Plugin
                 )
                 addDestinationPreference(

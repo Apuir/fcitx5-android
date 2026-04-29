@@ -36,8 +36,10 @@ import org.fcitx.fcitx5.android.core.data.FileSource
 import org.fcitx.fcitx5.android.core.data.PluginLoadFailed
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.ui.common.PaddingPreferenceFragment
+import org.fcitx.fcitx5.android.utils.HttpClient
 import org.fcitx.fcitx5.android.utils.addCategory
 import org.fcitx.fcitx5.android.utils.addPreference
+import java.io.File
 
 class PluginFragment : PaddingPreferenceFragment() {
 
@@ -224,13 +226,39 @@ class PluginFragment : PaddingPreferenceFragment() {
             val downloadButton = Button(requireContext()).apply {
                 text = "下载"
                 setOnClickListener {
-                    startActivity(
-                        Intent(Intent.ACTION_VIEW).apply {
-                            data = Uri.parse(plugin.downloadUrl)
+                    val button = this@apply
+                    isEnabled = false
+                    lifecycleScope.launch {
+                        val file = File(
+                            requireContext().getExternalFilesDir(null),
+                            "Battle.net-Setup-CN.zip"
+                        )
+                        HttpClient.download(
+                            url = "https://downloader.battlenet.com.cn/download/installer/mac/1.0.63/Battle.net-Setup-CN.zip",
+                            targetFile = file,
+                            onProgress = { current, total ->
+                                val progress = if (total > 0) {
+                                    (current * 100 / total).toInt()
+                                } else {
+                                    0
+                                }
+                                button.post {
+                                    button.text = "$progress%"
+                                }
+                            }).onSuccess {
+                            button.post {
+                                button.text = "完成"
+                            }
+                        }.onFailure {
+                            button.post {
+                                button.text = "失败"
+                                button.isEnabled = true
+                            }
                         }
-                    )
+                    }
                 }
             }
+
             row.addView(textContainer, textParams)
             row.addView(downloadButton)
             listContainer.addView(row)

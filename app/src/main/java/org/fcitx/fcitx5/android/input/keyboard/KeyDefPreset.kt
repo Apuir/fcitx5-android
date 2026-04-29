@@ -258,7 +258,7 @@ class CommaKey(
         Popup.Preview(displayText), Popup.Menu(
             arrayOf(
                 Popup.Menu.Item(
-                    "Symbol", R.drawable.ic_baseline_emoji_symbols_24, KeyAction.PickerSwitchAction(
+                    "Symbol", R.drawable.ic_baseline_at_24, KeyAction.PickerSwitchAction(
                         PickerWindow.Key.Symbol
                     )
                 ),
@@ -296,7 +296,7 @@ class SimpleCommaKey(
         Popup.Preview(displayText), Popup.Menu(
             arrayOf(
                 Popup.Menu.Item(
-                    "Symbol", R.drawable.ic_baseline_emoji_symbols_24, KeyAction.PickerSwitchAction(
+                    "Symbol", R.drawable.ic_baseline_at_24, KeyAction.PickerSwitchAction(
                         PickerWindow.Key.Symbol
                     )
                 ),

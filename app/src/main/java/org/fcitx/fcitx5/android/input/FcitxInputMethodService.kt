@@ -527,15 +527,19 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     fun clearContextOrInput() {
-        if (!::composingPreedit.isInitialized) return
+        if (!::composingPreedit.isInitialized) {
+            return
+        }
         if (composingPreedit.isNotEmpty()) {
             postFcitxJob { reset() }
             return
         }
         if (currentInputConnection != null) {
-            val before = currentInputConnection.getTextBeforeCursor(Int.MAX_VALUE, 0)?.length ?: 0
-            val after = currentInputConnection.getTextAfterCursor(Int.MAX_VALUE, 0)?.length ?: 0
-            currentInputConnection.deleteSurroundingText(before, after)
+            currentInputConnection?.finishComposingText()
+            currentInputConnection?.performContextMenuAction(
+                android.R.id.selectAll
+            )
+            currentInputConnection?.commitText("", 1)
         }
     }
 
