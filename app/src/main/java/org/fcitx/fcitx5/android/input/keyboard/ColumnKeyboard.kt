@@ -24,6 +24,7 @@ import splitties.views.dsl.constraintlayout.leftOfParent
 import splitties.views.dsl.constraintlayout.topOfParent
 import splitties.views.dsl.core.add
 import timber.log.Timber
+import kotlin.collections.ifEmpty
 import kotlin.collections.sortedBy
 
 @SuppressLint("ViewConstructor")
@@ -61,6 +62,8 @@ open class ColumnKeyboard(
     //当前输入的preedit
     private var composingPreedit: String = ""
 
+    private var sideColumnItems: List<KeyDef>  = emptyList()
+
     companion object {
         //分隔符（选择拼音的时候用的分隔符）
         const val segmentKeyChar = '\''
@@ -78,8 +81,9 @@ open class ColumnKeyboard(
             fcitx.runImmediately { eventFlow }.collect { handleFcitxEvent(it) }
         }
         post {
+
             columnAdapter = ColumnAdapter(
-                context, theme, sideLayoutKeyAppearance.children
+                context, theme, sideColumnItems
             ) { action -> this@ColumnKeyboard.onAction(action) }
 
             sideLayoutKeyView.adapter = columnAdapter
@@ -142,7 +146,7 @@ open class ColumnKeyboard(
                         val keys = buildPossibleCombinations(input, position)
                         withContext(Dispatchers.Main) {
                             sideLayoutKeyView.adapter?.updateItems(keys.ifEmpty {
-                                sideLayoutKeyAppearance.children
+                                sideColumnItems
                             })
                             sideLayoutKeyView.resetPosition()
                         }
@@ -151,6 +155,12 @@ open class ColumnKeyboard(
             }
             else -> {}
         }
+    }
+
+    fun updateSideBarItems(newItems: List<KeyDef>) {
+        sideColumnItems = newItems
+        sideLayoutKeyView.adapter?.updateItems(newItems)
+        sideLayoutKeyView.resetPosition()
     }
 
     override fun onAction(action: KeyAction, source: KeyActionListener.Source) {

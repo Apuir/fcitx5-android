@@ -15,6 +15,7 @@ import org.fcitx.fcitx5.android.core.KeySym
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Behavior
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 
@@ -100,6 +101,28 @@ class CommitKey(
     arrayOf(),
 )
 
+class ConfigurableCommitKey(
+    content: String,
+    textSize: Float = 15f,
+    border: Border = Border.On,
+    percentWidth: Float = 0.15f,
+    variant: Variant = Variant.Alternative,
+) : KeyDef(
+    Appearance.Text(
+        content,
+        textSize = textSize,
+        percentWidth = percentWidth,
+        variant = variant,
+        border = border,
+        visibility = View.VISIBLE,
+        viewId = R.id.button_configurable_commit
+    ),
+    setOf(
+        Behavior.Press(KeyAction.CommitSelfAction(""))
+    ),
+    arrayOf(),
+)
+
 open class MixAlphabetKey(
     val character: String,
     val punctuation: String,
@@ -126,13 +149,11 @@ open class MixAlphabetKey(
 )
 
 class ColumnKey(
-    children: List<KeyDef>,
     variant: Variant = Variant.Normal,
     popup: Array<Popup>? = null,
     percentWidth: Float = 0.212f,
 ) : KeyDef(
     Appearance.Column(
-        children = children,
         variant = variant,
         percentWidth = percentWidth,
     ), setOf(
@@ -242,7 +263,8 @@ class QuickPhraseKey : KeyDef(
 )
 
 class CommaKey(
-    displayText: String = ",",
+    displayText: String = ".",
+    keySym: Int = FcitxKeyMapping.FcitxKey_period,
     percentWidth: Float,
     variant: Variant,
 ) : KeyDef(
@@ -253,9 +275,9 @@ class CommaKey(
         variant = variant,
         src = R.drawable.ic_baseline_tag_faces_24
     ), setOf(
-        Behavior.Press(KeyAction.CommitAction(displayText))
+        Behavior.Press(KeyAction.SymAction(KeySym(keySym), KeyStates(KeyState.Virtual, KeyState.CapsLock)))
     ), arrayOf(
-        Popup.Preview(displayText), Popup.Menu(
+        Popup.Preview(""), Popup.Menu(
             arrayOf(
                 Popup.Menu.Item(
                     "Symbol", R.drawable.ic_baseline_at_24, KeyAction.PickerSwitchAction(
@@ -293,7 +315,7 @@ class SimpleCommaKey(
     ), setOf(
         Behavior.Press(KeyAction.CommitAction(displayText))
     ), arrayOf(
-        Popup.Preview(displayText), Popup.Menu(
+        Popup.Preview(""), Popup.Menu(
             arrayOf(
                 Popup.Menu.Item(
                     "Symbol", R.drawable.ic_baseline_at_24, KeyAction.PickerSwitchAction(
@@ -338,7 +360,8 @@ class SpaceKey(
         variant = variant
     ), setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_space))),
-        Behavior.LongPress(KeyAction.SpaceLongPressAction)
+        Behavior.LongPress(KeyAction.SpaceLongPressAction),
+        Behavior.Swipe(KeyAction.CommitAction("0"))
     )
 )
 

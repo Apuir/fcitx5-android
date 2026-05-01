@@ -317,4 +317,10 @@
     <string name="hide_unsupported_emojis">隐藏不支持的表情</string>
     <string name="key_border_stroke">启用按键边框描边</string>
     <string name="preferred_voice_input">首选语音输入</string>
+    <string name="keyboard_settings">键盘设置</string>
+    <string name="layout_settings">布局设置</string>
+    <string name="t9_layout">9键布局</string>
+    <string name="t9_sidebar_symbols">侧边栏符号（空格分隔）</string>
+    <string name="t9_sidebar_column">侧边栏显示数量</string>
+    <string name="t9_replace_voice_btn">使用此符号替代语音输入键</string>
 </resources>

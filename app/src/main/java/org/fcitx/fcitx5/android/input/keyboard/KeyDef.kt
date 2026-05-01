@@ -77,7 +77,6 @@ open class KeyDef(
         ) : Appearance(percentWidth, variant, border, margin, viewId, soundEffect)
 
         class Column(
-            val children: List<KeyDef>,
             percentWidth: Float = 0.1f,
             variant: Variant = Variant.Normal,
             border: Border = Border.Default,

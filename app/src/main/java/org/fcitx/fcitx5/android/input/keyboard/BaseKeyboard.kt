@@ -332,9 +332,13 @@ abstract class BaseKeyboard(
                             view as KeyView
                             if (popupOnKeyPress) {
                                 when (event.type) {
-                                    GestureType.Down -> onPopupAction(
-                                        PopupAction.PreviewAction(view.id, it.content, view.bounds)
-                                    )
+                                    GestureType.Down -> {
+                                        if (it.content.isNotEmpty()){
+                                            onPopupAction(
+                                                PopupAction.PreviewAction(view.id, it.content, view.bounds)
+                                            )
+                                        }
+                                    }
                                     GestureType.Up -> {
                                         onPopupAction(PopupAction.DismissAction(view.id))
                                     }

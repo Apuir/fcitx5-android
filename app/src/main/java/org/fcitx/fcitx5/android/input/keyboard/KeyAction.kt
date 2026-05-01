@@ -21,6 +21,7 @@ sealed class KeyAction {
 
     data class CommitAction(val text: String) : KeyAction()
 
+    data class CommitSelfAction(val text: String) : KeyAction()
     data class DirectCommitAction(val text: String) : KeyAction()
 
     data class SelectPinYinAction(val pos: Int, val raw: String, val pinYin: String): KeyAction()

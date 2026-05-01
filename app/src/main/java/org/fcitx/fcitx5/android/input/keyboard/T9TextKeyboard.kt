@@ -6,10 +6,15 @@ package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.view.View
+import androidx.annotation.Keep
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.core.FcitxKeyMapping
 import org.fcitx.fcitx5.android.core.InputMethodEntry
+import org.fcitx.fcitx5.android.core.KeySym
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
-import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import timber.log.Timber
@@ -20,6 +25,35 @@ class T9TextKeyboard(
 ) : ColumnKeyboard(
     context, theme, SideLayoutColumnNum, SideLayoutColumnShowNum, SideLayout, Layout
 ) {
+    private val layoutPrefs = AppPrefs.getInstance().layout
+
+    private val sidebarSymbolsKey = layoutPrefs.sidebarSymbols
+
+    private val voiceInputBtnReplaced = layoutPrefs.replaceVoiceBtn
+
+    private val voiceInputBtn: ImageKeyView by lazy { findViewById(R.id.button_voice) }
+
+    private val configurableCommitBtn: TextKeyView by lazy { findViewById(R.id.button_configurable_commit) }
+
+    @Keep
+    private val onSidebarSymbolsKeyChanged = ManagedPreference.OnChangeListener<String> { _, v ->
+        updateSideBarItems(generateItems(v))
+    }
+
+    @Keep
+    private val onVoiceInputBtnReplacedChanged =
+        ManagedPreference.OnChangeListener<String> { _, v ->
+            updateVoiceBtnState(v)
+        }
+
+
+    init {
+        sidebarSymbolsKey.registerOnChangeListener(onSidebarSymbolsKeyChanged)
+        voiceInputBtnReplaced.registerOnChangeListener(onVoiceInputBtnReplacedChanged)
+
+        updateSideBarItems(generateItems(sidebarSymbolsKey.getValue()))
+        updateVoiceBtnState(voiceInputBtnReplaced.getValue())
+    }
 
     companion object {
         const val Name = "T9Text"
@@ -27,16 +61,21 @@ class T9TextKeyboard(
         //占用3行
         const val SideLayoutColumnNum = 3
 
-        //占用3行 容器里显示4行
+        //显示4行
         const val SideLayoutColumnShowNum = 4
 
+        fun generateItems(chars: String): List<KeyDef> {
+            val items = ArrayList<KeyDef>()
+            val chars = chars.trim().split(" ")
+            chars.forEach { char ->
+                items.add(CommitKey(char))
+            }
+            return items
+        }
+
         val SideLayout: KeyDef = ColumnKey(
-            percentWidth = 0.15f, variant = Variant.Alternative, children = listOf(
-                CommitKey("，"),
-                CommitKey("。"),
-                CommitKey("？"),
-                CommitKey("！"),
-            )
+            percentWidth = 0.15f,
+            variant = Variant.Alternative,
         )
 
         val Layout: List<List<KeyDef>> = listOf(
@@ -58,11 +97,14 @@ class T9TextKeyboard(
                 MixAlphabetKey("TUV", "8"),
                 MixAlphabetKey("WXYZ", "9"),
                 VoiceKey(),
+                ConfigurableCommitKey("@", percentWidth = 0.15f, variant = Variant.Alternative)
             ), listOf(
-                LayoutSwitchKey("?123", MixNumberKeyboard.Name, percentWidth = 0.15f, textSize = 15f),
+                LayoutSwitchKey(
+                    "?123", MixNumberKeyboard.Name, percentWidth = 0.15f, textSize = 15f
+                ),
                 LanguageKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 SpaceKey(),
-                CommaKey(".",0.15f, Variant.Alternative),
+                CommaKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 ReturnKey(percentWidth = 0.15f)
             )
         )
@@ -88,6 +130,15 @@ class T9TextKeyboard(
                     action
                 }
             }
+            action is KeyAction.SymAction -> {
+                if (action.sym == KeySym(FcitxKeyMapping.FcitxKey_period)) {
+                    super.onAction(KeyAction.CommitAction(""), source)
+                }
+                action
+            }
+            action is KeyAction.CommitSelfAction -> {
+                KeyAction.CommitAction(configurableCommitBtn.mainText.text.toString())
+            }
             else -> action
         }
         super.onAction(newAction, source)
@@ -108,4 +159,14 @@ class T9TextKeyboard(
         super.onPopupAction(newAction)
     }
 
+    fun updateVoiceBtnState(v: String) {
+        if (v.trim().isNotBlank()) {
+            voiceInputBtn.visibility = GONE
+            configurableCommitBtn.visibility = VISIBLE
+            configurableCommitBtn.mainText.text = v
+            return
+        }
+        voiceInputBtn.visibility = VISIBLE
+        configurableCommitBtn.visibility = GONE
+    }
 }

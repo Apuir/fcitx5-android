@@ -5,6 +5,13 @@
 package org.fcitx.fcitx5.android.data.prefs
 
 import android.content.Context
+import android.graphics.Color
+import android.os.Build
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.ForegroundColorSpan
+import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
@@ -152,6 +159,55 @@ abstract class ManagedPreferenceUi<T : Preference>(
             max = this@SeekBarInt.max
             unit = this@SeekBarInt.unit
             step = this@SeekBarInt.step
+        }
+    }
+
+    class EditTextString(
+        @StringRes val title: Int,
+        key: String,
+        val defaultValue: String,
+        enableUiOn: (() -> Boolean)? = null
+    ) : ManagedPreferenceUi<EditTextPreference>(key, enableUiOn) {
+
+        override fun createUi(context: Context) = EditTextPreference(context).apply {
+            key = this@EditTextString.key
+            isIconSpaceReserved = false
+            isSingleLineTitle = false
+            setDefaultValue(this@EditTextString.defaultValue)
+            setTitle(this@EditTextString.title)
+            setDialogTitle(this@EditTextString.title)
+            summaryProvider = EditTextPreference.SimpleSummaryProvider.getInstance()
+            setOnBindEditTextListener {
+                it.setSingleLine(true)
+            }
+        }
+    }
+
+    class SubTitle(
+        @StringRes val title: Int, key: String = ""
+    ) : ManagedPreferenceUi<Preference>(key) {
+        override fun createUi(context: Context) = Preference(context).apply {
+            isSelectable = false
+            isEnabled = false
+            isIconSpaceReserved = false
+
+            title = SpannableString(
+                context.getString(this@SubTitle.title)
+            ).apply {
+                setSpan(
+                    ForegroundColorSpan(Color.argb(255, 154, 193, 187)),
+                    0,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+
+                setSpan(
+                    AbsoluteSizeSpan(15, true),
+                    0,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
         }
     }
 

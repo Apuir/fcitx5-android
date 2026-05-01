@@ -55,7 +55,7 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
                 addDestinationPreference(
                     R.string.addons,
-                    R.drawable.ic_baseline_extension_24,
+                    R.drawable.ic_baseline_cake_24,
                     SettingsRoute.AddonList
                 )
             }
@@ -69,6 +69,11 @@ class MainFragment : PaddingPreferenceFragment() {
                     R.string.virtual_keyboard,
                     R.drawable.ic_baseline_keyboard_24,
                     SettingsRoute.VirtualKeyboard
+                )
+                addDestinationPreference(
+                    R.string.layout_settings,
+                    R.drawable.ic_baseline_layouts_24,
+                    SettingsRoute.Layouts
                 )
                 addDestinationPreference(
                     R.string.candidates_window,

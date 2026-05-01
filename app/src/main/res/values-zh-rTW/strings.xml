@@ -102,7 +102,7 @@
     <string name="quickphrase_phrase">片語</string>
     <string name="reload_config">重新讀取設定</string>
     <string name="input_method_options">輸入法設定</string>
-    <string name="theme">主題</string>
+    <string name="theme">主題設定</string>
     <string name="key_ripple_effect">啟用按鍵水波紋特效</string>
     <string name="key_border">啟用按鍵邊框</string>
     <string name="brightness">亮度</string>
@@ -316,4 +316,10 @@
     <string name="emoji_skin_tone_type_6">🏿 深膚色 (Type-6)</string>
     <string name="hide_unsupported_emojis">隱藏不支援的表情</string>
     <string name="preferred_voice_input">首選語音輸入</string>
+    <string name="keyboard_settings">鍵盤設定</string>
+    <string name="layout_settings">佈局設定</string>
+    <string name="t9_layout">9鍵佈局</string>
+    <string name="t9_sidebar_symbols">側邊欄符號（以空格分隔）</string>
+    <string name="t9_sidebar_column">側邊欄顯示數量</string>
+    <string name="t9_replace_voice_btn">使用此符號取代語音輸入鍵</string>
 </resources>

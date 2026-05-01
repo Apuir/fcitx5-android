@@ -317,4 +317,10 @@
     <string name="hide_unsupported_emojis">Hide unsupported Emojis</string>
     <string name="key_border_stroke">Enable stroke for key border</string>
     <string name="preferred_voice_input">Preferred voice input</string>
+    <string name="keyboard_settings">Keyboard Settings</string>
+    <string name="layout_settings">Layout Settings</string>
+    <string name="t9_layout">T9 Layout</string>
+    <string name="t9_sidebar_symbols">Sidebar symbols (space-separated)</string>
+    <string name="t9_sidebar_column">Visible sidebar item count</string>
+    <string name="t9_replace_voice_btn">Replace voice input key with this symbol</string>
 </resources>

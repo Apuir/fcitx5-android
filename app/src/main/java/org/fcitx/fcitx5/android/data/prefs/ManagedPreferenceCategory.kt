@@ -49,6 +49,33 @@ abstract class ManagedPreferenceCategory(
         return pref
     }
 
+    protected fun subTitle(@StringRes title: Int) {
+        ManagedPreferenceUi.SubTitle(title).registerUi()
+    }
+
+    protected fun string(
+        @StringRes
+        title: Int,
+        key: String,
+        defaultValue: String,
+        enableUiOn: (() -> Boolean)? = null
+    ): ManagedPreference.PString {
+        val pref = ManagedPreference.PString(
+            sharedPreferences,
+            key,
+            defaultValue
+        )
+        val ui = ManagedPreferenceUi.EditTextString(
+            title,
+            key,
+            defaultValue,
+            enableUiOn
+        )
+        pref.register()
+        ui.registerUi()
+        return pref
+    }
+
     protected inline fun <reified T> enumList(
         @StringRes
         title: Int,

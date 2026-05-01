@@ -70,7 +70,7 @@ class TextKeyboard(
                 LayoutSwitchKey("?123", MixNumberKeyboard.Name, percentWidth = 0.15f, textSize = 15f),
                 LanguageKey(percentWidth = 0.15f,variant = Variant.Alternative),
                 SpaceKey(),
-                CommaKey(".",0.15f, Variant.Alternative),
+                CommaKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 ReturnKey(percentWidth = 0.15f)
             )
         )

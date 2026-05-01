@@ -52,6 +52,14 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         )
     }
 
+    inner class Layout : ManagedPreferenceCategory(R.string.layout_settings, sharedPreferences) {
+        val t9SubTitle = subTitle(title = R.string.t9_layout)
+        val sidebarSymbols =
+            string(title = R.string.t9_sidebar_symbols, "layout_t9_sidebar_symbols", "， 。 ！ ？")
+        val replaceVoiceBtn =
+            string(R.string.t9_replace_voice_btn, "layout_t9_sidebar_replace_voice_btn", "")
+    }
+
     inner class Keyboard : ManagedPreferenceCategory(R.string.virtual_keyboard, sharedPreferences) {
         val hapticOnKeyPress =
             enumList(
@@ -381,6 +389,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
     val internal = Internal().register()
     val keyboard = Keyboard().register()
+    var layout = Layout().register()
     val candidates = Candidates().register()
     val clipboard = Clipboard().register()
     val symbols = Symbols().register()
