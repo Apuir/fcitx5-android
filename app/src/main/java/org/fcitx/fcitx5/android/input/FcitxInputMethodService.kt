@@ -46,6 +46,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.core.CapabilityFlag
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.FcitxAPI
 import org.fcitx.fcitx5.android.core.FcitxEvent
@@ -760,7 +761,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         // right cursor position, try to workaround this would simply introduce more bugs.
         selection.resetTo(attribute.initialSelStart, attribute.initialSelEnd)
         resetComposingState()
-        val flags = CapabilityFlags.fromEditorInfo(attribute)
+        var flags = CapabilityFlags.fromEditorInfo(attribute)
+        // fuck mobileqq
+        if (attribute.packageName == "com.tencent.mobileqq") {
+            flags = CapabilityFlags.DefaultFlags
+        }
         capabilityFlags = flags
         // EditorInfo may change between onStartInput and onStartInputView
         inputDeviceMgr.notifyOnStartInput(attribute)
