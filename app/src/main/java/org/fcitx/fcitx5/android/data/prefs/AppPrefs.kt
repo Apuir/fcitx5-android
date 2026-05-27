@@ -61,6 +61,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     }
 
     inner class Keyboard : ManagedPreferenceCategory(R.string.virtual_keyboard, sharedPreferences) {
+        val enableMixedNumberKeyboard = switch(R.string.enable_mixed_number_keyboard, "enable_mixed_number_keyboard", false)
+
         val hapticOnKeyPress =
             enumList(
                 R.string.button_haptic_feedback,
@@ -252,6 +254,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             "horizontal_candidate_style",
             HorizontalCandidateMode.AutoFillWidth
         )
+
         val expandedCandidateStyle = enumList(
             R.string.expanded_candidate_style,
             "expanded_candidate_style",

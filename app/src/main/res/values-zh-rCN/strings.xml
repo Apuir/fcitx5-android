@@ -323,4 +323,5 @@
     <string name="t9_sidebar_symbols">侧边栏符号（空格分隔）</string>
     <string name="t9_sidebar_column">侧边栏显示数量</string>
     <string name="t9_replace_voice_btn">使用此符号替代语音输入键</string>
+    <string name="enable_mixed_number_keyboard">启用混合数字键盘</string>
 </resources>

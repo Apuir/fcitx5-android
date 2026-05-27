@@ -15,9 +15,7 @@ import org.fcitx.fcitx5.android.core.KeySym
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
-import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Behavior
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
-import org.fcitx.fcitx5.android.input.popup.PopupAction
 
 val NumLockState = KeyStates(KeyState.NumLock, KeyState.Virtual)
 
@@ -83,7 +81,7 @@ class PinYinCandidateKey(
 class CommitKey(
     content: String,
     textSize: Float = 18f,
-    border: Border = Border.Off,
+    border: Border = Border.Default,
     percentWidth: Float = 0.15f,
     variant: Variant = Variant.Alternative,
 ) : KeyDef(
@@ -320,6 +318,11 @@ class SimpleCommaKey(
                 Popup.Menu.Item(
                     "Symbol", R.drawable.ic_baseline_at_24, KeyAction.PickerSwitchAction(
                         PickerWindow.Key.Symbol
+                    )
+                ),
+                Popup.Menu.Item(
+                    "Number", R.drawable.ic_baseline_number123_24, KeyAction.LayoutSwitchAction(
+                        NumberKeyboard.Name
                     )
                 ),
                 Popup.Menu.Item(

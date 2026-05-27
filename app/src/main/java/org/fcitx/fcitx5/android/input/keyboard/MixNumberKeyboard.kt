@@ -27,50 +27,48 @@ class MixNumberKeyboard(
     private val fcitx = FcitxDaemon.connect(javaClass.name)
 
     companion object {
-        const val Name = "Number"
+        const val Name = "MixNumber"
 
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
-                CommitKey("%", border = Border.On, percentWidth = 0.125f),
-                CommitKey("!", border = Border.On, percentWidth = 0.1f),
-                CommitKey("?", border = Border.On, percentWidth = 0.1f),
-                CommitKey("+", border = Border.On, percentWidth = 0.1f),
-                CommitKey("1", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("2", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("3", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("%",  percentWidth = 0.125f),
+                CommitKey("!",  percentWidth = 0.1f),
+                CommitKey("?",  percentWidth = 0.1f),
+                CommitKey("+",  percentWidth = 0.1f),
+                CommitKey("1",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("2",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("3",  percentWidth = 0.15f, variant = Variant.Normal),
                 BackspaceKey(percentWidth = 0.125f)
             ), listOf(
-                CommitKey("&", border = Border.On, percentWidth = 0.125f),
-                CommitKey("(", border = Border.On, percentWidth = 0.1f),
-                CommitKey(")", border = Border.On, percentWidth = 0.1f),
-                CommitKey("-", border = Border.On, percentWidth = 0.1f),
-                CommitKey("4", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("5", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("6", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("&",  percentWidth = 0.125f),
+                CommitKey("(",  percentWidth = 0.1f),
+                CommitKey(")",  percentWidth = 0.1f),
+                CommitKey("-",  percentWidth = 0.1f),
+                CommitKey("4",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("5",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("6",  percentWidth = 0.15f, variant = Variant.Normal),
                 MiniSpaceKey(percentWidth = 0.125f),
             ), listOf(
-                CommitKey("~", border = Border.On, percentWidth = 0.125f),
-                CommitKey(":", border = Border.On, percentWidth = 0.1f),
-                CommitKey(";", border = Border.On, percentWidth = 0.1f),
-                CommitKey("*", border = Border.On, percentWidth = 0.1f),
-                CommitKey("7", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("8", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey("9", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("~",  percentWidth = 0.125f),
+                CommitKey(":",  percentWidth = 0.1f),
+                CommitKey(";",  percentWidth = 0.1f),
+                CommitKey("*",  percentWidth = 0.1f),
+                CommitKey("7",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("8",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommitKey("9",  percentWidth = 0.15f, variant = Variant.Normal),
                 CommitKey(
-                    "=", border = Border.On, percentWidth = 0.125f, variant = Variant.Alternative
+                    "=",  percentWidth = 0.125f, variant = Variant.Alternative
                 ),
             ), listOf(
                 LayoutSwitchKey("Abc", "", percentWidth = 0.125f, textSize = 15f),
-                CommitKey("<", border = Border.On, percentWidth = 0.1f),
-                CommitKey(">", border = Border.On, percentWidth = 0.1f),
-                CommitKey("/", border = Border.On, percentWidth = 0.1f),
+                CommitKey("<",  percentWidth = 0.1f),
+                CommitKey(">",  percentWidth = 0.1f),
+                CommitKey("/",  percentWidth = 0.1f),
                 CommitKey(
-                    ",", border = Border.On, percentWidth = 0.15f, variant = Variant.Alternative
+                    ",",  percentWidth = 0.15f, variant = Variant.Alternative
                 ),
-                CommitKey("0", border = Border.On, percentWidth = 0.15f, variant = Variant.Normal),
-                CommitKey(
-                    ".", border = Border.On, percentWidth = 0.15f, variant = Variant.Alternative
-                ),
+                CommitKey("0",  percentWidth = 0.15f, variant = Variant.Normal),
+                CommaKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 ReturnKey(percentWidth = 0.125f)
             )
         )
@@ -87,6 +85,7 @@ class MixNumberKeyboard(
     @SuppressLint("MissingSuperCall")
     override fun onPopupAction(action: PopupAction) {
         // leave empty on purpose to disable popup in NumberKeyboard
+        super.onPopupAction(action)
     }
 
     override fun onAction(action: KeyAction, source: KeyActionListener.Source) {

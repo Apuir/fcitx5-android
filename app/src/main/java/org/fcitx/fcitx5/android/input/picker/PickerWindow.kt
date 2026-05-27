@@ -22,6 +22,8 @@ import org.fcitx.fcitx5.android.input.keyboard.KeyAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
+import org.fcitx.fcitx5.android.input.keyboard.MixNumberKeyboard
+import org.fcitx.fcitx5.android.input.keyboard.NumberKeyboard
 import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
@@ -89,9 +91,16 @@ class PickerWindow(
 
     fun onLayoutSwitchAction(it: KeyAction.LayoutSwitchAction,activeNextIme: Boolean = false) {
         if (it.act != "") {
+            var act = it.act
+            if (act == MixNumberKeyboard.Name || act == NumberKeyboard.Name) {
+                act = MixNumberKeyboard.Name
+                if (!AppPrefs.getInstance().keyboard.enableMixedNumberKeyboard.getValue()) {
+                    act = NumberKeyboard.Name
+                }
+            }
             // Switch to NumberKeyboard before attaching KeyboardWindow
             (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow).switchLayout(
-                it.act
+                act
             )
             // The real switchLayout (detachCurrentLayout and attachLayout) in KeyboardWindow is postponed,
             // so we have to postpone attachWindow as well

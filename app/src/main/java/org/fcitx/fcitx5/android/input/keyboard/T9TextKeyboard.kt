@@ -139,6 +139,17 @@ class T9TextKeyboard(
             action is KeyAction.CommitSelfAction -> {
                 KeyAction.CommitAction(configurableCommitBtn.mainText.text.toString())
             }
+            action is KeyAction.LayoutSwitchAction -> {
+                if (action.act == MixNumberKeyboard.Name || action.act == NumberKeyboard.Name) {
+                    var act = MixNumberKeyboard.Name
+                    if (!AppPrefs.getInstance().keyboard.enableMixedNumberKeyboard.getValue()) {
+                        act = NumberKeyboard.Name
+                    }
+                    KeyAction.LayoutSwitchAction(act)
+                } else {
+                    action
+                }
+            }
             else -> action
         }
         super.onAction(newAction, source)

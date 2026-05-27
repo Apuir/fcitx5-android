@@ -10,6 +10,8 @@ import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import splitties.views.imageResource
@@ -30,33 +32,32 @@ class NumberKeyboard(
 
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
-                NumPadKey("+", 0xffab, 23f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("1", 0xffb1, 30f, 0f),
-                NumPadKey("2", 0xffb2, 30f, 0f),
-                NumPadKey("3", 0xffb3, 30f, 0f),
-                NumPadKey("/", 0xffaf, 23f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-            ),
-            listOf(
-                NumPadKey("-", 0xffad, 23f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("4", 0xffb4, 30f, 0f),
-                NumPadKey("5", 0xffb5, 30f, 0f),
-                NumPadKey("6", 0xffb6, 30f, 0f),
+                NumPadKey("+", 0xffab, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
+                NumPadKey("1", 0xffb1, 24f, 0f),
+                NumPadKey("2", 0xffb2, 24f, 0f),
+                NumPadKey("3", 0xffb3, 24f, 0f),
+                BackspaceKey(),
+            ), listOf(
+                NumPadKey("-", 0xffad, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
+                NumPadKey("4", 0xffb4, 24f, 0f),
+                NumPadKey("5", 0xffb5, 24f, 0f),
+                NumPadKey("6", 0xffb6, 24f, 0f),
                 MiniSpaceKey()
-            ),
-            listOf(
-                NumPadKey("*", 0xffaa, 23f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("7", 0xffb7, 30f, 0f),
-                NumPadKey("8", 0xffb8, 30f, 0f),
-                NumPadKey("9", 0xffb9, 30f, 0f),
-                BackspaceKey()
-            ),
-            listOf(
-                LayoutSwitchKey("Abc", "", textSize = 15f),
-                NumPadKey(",", 0xffac, 23f, 0.1f, KeyDef.Appearance.Variant.Alternative),
-                LayoutSwitchKey("!?#", PickerWindow.Key.Symbol.name, 0.13333f, KeyDef.Appearance.Variant.AltForeground),
-                NumPadKey("0", 0xffb0, 30f, 0.23334f),
-                NumPadKey("=", 0xffbd, 23f, 0.13333f, KeyDef.Appearance.Variant.AltForeground),
-                NumPadKey(".", 0xffae, 23f, 0.1f, KeyDef.Appearance.Variant.Alternative),
+            ), listOf(
+                NumPadKey("*", 0xffaa, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
+                NumPadKey("7", 0xffb7, 24f, 0f),
+                NumPadKey("8", 0xffb8, 24f, 0f),
+                NumPadKey("9", 0xffb9, 24f, 0f),
+                NumPadKey("=", 0xffbd, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
+            ), listOf(
+                LayoutSwitchKey("Abc", "", textSize = 15f, percentWidth = 0.15f),
+                NumPadKey("/", 0xffaf, 21f, 0.1f, KeyDef.Appearance.Variant.Alternative),
+                CommitKey(
+                    "!", border = Border.Default, percentWidth = 0.13333f, textSize = 21f, variant = Variant.Alternative
+                ),
+                NumPadKey("0", 0xffb0, 24f, 0f),
+                NumPadKey(",", 0xffac, 21f, 0.13333f, KeyDef.Appearance.Variant.Alternative),
+                CommaKey(percentWidth = 0.1f, variant = Variant.Alternative),
                 ReturnKey()
             )
         )
@@ -73,6 +74,7 @@ class NumberKeyboard(
     @SuppressLint("MissingSuperCall")
     override fun onPopupAction(action: PopupAction) {
         // leave empty on purpose to disable popup in NumberKeyboard
+        super.onPopupAction(action)
     }
 
     override fun onAction(action: KeyAction, source: KeyActionListener.Source) {

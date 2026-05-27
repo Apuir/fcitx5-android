@@ -322,4 +322,5 @@
     <string name="t9_sidebar_symbols">側邊欄符號（以空格分隔）</string>
     <string name="t9_sidebar_column">側邊欄顯示數量</string>
     <string name="t9_replace_voice_btn">使用此符號取代語音輸入鍵</string>
+    <string name="enable_mixed_number_keyboard">啟用混合數字鍵盤</string>
 </resources>

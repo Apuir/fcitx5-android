@@ -25,7 +25,7 @@ class TextKeyboard(
     context: Context,
     theme: Theme
 ) : BaseKeyboard(context, theme, Layout) {
-
+    private val virtualKeyboardPrefs = AppPrefs.getInstance().keyboard
     enum class CapsState { None, Once, Lock }
 
     companion object {
@@ -144,6 +144,15 @@ class TextKeyboard(
                 }
             }
             is KeyAction.CapsAction -> switchCapsState(action.lock)
+            is KeyAction.LayoutSwitchAction -> {
+                if (action.act == MixNumberKeyboard.Name || action.act == NumberKeyboard.Name) {
+                    var act = MixNumberKeyboard.Name
+                    if (!AppPrefs.getInstance().keyboard.enableMixedNumberKeyboard.getValue()) {
+                        act = NumberKeyboard.Name
+                    }
+                    transformed = KeyAction.LayoutSwitchAction(act)
+                }
+            }
             else -> {}
         }
         super.onAction(transformed, source)
