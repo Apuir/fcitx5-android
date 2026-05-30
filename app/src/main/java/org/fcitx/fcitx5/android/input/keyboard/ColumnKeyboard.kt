@@ -37,10 +37,6 @@ open class ColumnKeyboard(
     private val layout: List<List<KeyDef>>
 ) : BaseKeyboard(context, theme, layout) {
 
-    private val keyboardPrefs = AppPrefs.getInstance().keyboard
-
-    private val keyboardSidePadding = keyboardPrefs.keyboardSidePadding
-
     protected val sideLayoutKeyView: ColumnKeyView = createKeyView(sideLayoutKey) as ColumnKeyView
 
     protected val sideLayoutKeyAppearance = sideLayoutKey.appearance as KeyDef.Appearance.Column
@@ -105,12 +101,7 @@ open class ColumnKeyboard(
         val rowCount = layout.size
         if (rowCount == 0 || height == 0) return
         val rowHeight = (height / rowCount)
-        val sidePadding = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            keyboardSidePadding.getValue().toFloat(),
-            resources.displayMetrics
-        ).toInt()
-        val finalHeight = rowHeight * sideLayoutKeyColumnNum + sidePadding
+        val finalHeight = rowHeight * sideLayoutKeyColumnNum
         sideLayoutKeyView.layoutParams = sideLayoutKeyView.layoutParams.apply {
             height = finalHeight
         }
