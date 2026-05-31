@@ -12,6 +12,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.InputFeedbacks.InputFeedbackMode
+import org.fcitx.fcitx5.android.data.LayoutData
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesOrientation
@@ -58,6 +59,14 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             string(title = R.string.t9_sidebar_symbols, "layout_t9_sidebar_symbols", "， 。 ！ ？")
         val replaceVoiceBtn =
             string(R.string.t9_replace_voice_btn, "layout_t9_sidebar_replace_voice_btn", "")
+
+
+        val voiceSubTitle = subTitle(title = R.string.voice_layout)
+        val voiceKeyboardStyle =  enumList(
+            R.string.voice_keyboard_style,
+            "voice_keyboard_style",
+            LayoutData.VoiceKeyboardStyle.Default
+        )
     }
 
     inner class Keyboard : ManagedPreferenceCategory(R.string.virtual_keyboard, sharedPreferences) {
@@ -179,6 +188,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             "space_long_press_behavior",
             SpaceLongPressBehavior.None
         )
+
         val spaceSwipeMoveCursor =
             switch(R.string.space_swipe_move_cursor, "space_swipe_move_cursor", true)
         val showLangSwitchKey =

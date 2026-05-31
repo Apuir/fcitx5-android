@@ -4,15 +4,15 @@
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
+import android.graphics.Color
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
+import androidx.core.graphics.ColorUtils
 import androidx.transition.Slide
-import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.InputMethodEntry
@@ -23,10 +23,10 @@ import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
-import org.fcitx.fcitx5.android.input.dialog.AddMoreInputMethodsPrompt
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
+import org.fcitx.fcitx5.android.input.voice.WaveformView
 import org.fcitx.fcitx5.android.input.wm.EssentialWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
@@ -35,7 +35,6 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
-import timber.log.Timber
 
 class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), EssentialWindow,
     InputBroadcastReceiver {
@@ -72,6 +71,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         }
 
     private lateinit var keyboardView: FrameLayout
+    private var voiceOverlay: View? = null
+    private var voiceWave: org.fcitx.fcitx5.android.input.voice.WaveformView? = null
 
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
@@ -186,6 +187,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     override fun onDetached() {
+        // 清理语音覆盖层，避免窗口切换后残留
+        hideVoiceOverlay()
         currentKeyboard?.let {
             it.onDetach()
             it.keyActionListener = null
@@ -213,5 +216,124 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
                 ?.let { preferKeyboardMap[it] }
             switchLayout(preferLayout ?: fallback, remember = false)
         }
+    }
+
+    // =====================================================================
+    // 🌟 优化核心：将语音覆盖层与波形 View 变成长驻成员，确保全生命周期【只实例化和绘制一次】
+    // =====================================================================
+    private var voiceOverlayLayout: FrameLayout? = null
+    private var cachedVoiceWave: WaveformView? = null
+    private var isVoiceOverlayShowing = false
+
+    /**
+     * 显示“语音输入占位”覆盖层（零内存分配、只会绘制一次的终极优化版）
+     */
+    fun showVoiceOverlay() {
+        if (isVoiceOverlayShowing) return
+        isVoiceOverlayShowing = true
+
+        // 1. 获取或懒加载初始化语音覆盖层（有且仅执行一次）
+        var overlay = voiceOverlayLayout
+        if (overlay == null) {
+            val bgColor = when (val t = theme) {
+                is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
+                else -> theme.backgroundColor
+            }
+
+            overlay = FrameLayout(context).apply {
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                setBackgroundColor(bgColor)
+                isClickable = false
+                isFocusable = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                // 首次创建时先隐藏，且扔到 Y 轴屏幕下方，为自底向上动画做基准准备
+                visibility = View.INVISIBLE
+            }
+
+            val wave = WaveformView(context).apply {
+                val candidateColors = listOf(
+                    theme.genericActiveForegroundColor,
+                    theme.accentKeyBackgroundColor,
+                    theme.keyTextColor
+                )
+                val lineColor = candidateColors.firstOrNull {
+                    ColorUtils.calculateContrast(it, bgColor) >= 2.5
+                } ?: theme.genericActiveForegroundColor
+                setWaveformColor(lineColor)
+                visibility = View.INVISIBLE
+            }
+
+            overlay.addView(wave, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+
+            // 🌟 整个生命周期内，有且仅有一次 addView 挂载操作，彻底免除后续的测绘惩罚
+            keyboardView.addView(overlay)
+
+            voiceOverlayLayout = overlay
+            cachedVoiceWave = wave
+        }
+    }
+
+    /**
+     * 激活覆盖层内的声波动画
+     */
+    fun startVoiceOverlayWave() {
+        val wave = cachedVoiceWave ?: return
+        val overlay = voiceOverlayLayout ?: return
+        wave.start()
+
+        val currentBgColor = when (val t = theme) {
+            is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
+            else -> theme.backgroundColor
+        }
+        val alpha = 200
+        overlay.setBackgroundColor(Color.argb(alpha, Color.red(currentBgColor), Color.green(
+            currentBgColor
+        ), Color.blue(currentBgColor)))
+
+        overlay.bringToFront()
+        wave.visibility = View.VISIBLE
+        overlay.visibility = View.VISIBLE
+
+        overlay.animate()
+            .alpha(1f)
+            .setDuration(10)  // 淡入动画时长 10ms
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .setListener(null)
+            .start()
+    }
+
+    /**
+     * 隐藏“语音输入占位”覆盖层（不释放对象，仅隐藏）
+     */
+    fun hideVoiceOverlay() {
+        if (!isVoiceOverlayShowing) return
+        isVoiceOverlayShowing = false
+
+        val overlay = voiceOverlayLayout ?: return
+
+        // 优雅停止前面改造过的低功耗波形工作线程
+        try { cachedVoiceWave?.stop() } catch (_: Throwable) {}
+        cachedVoiceWave?.visibility = View.INVISIBLE
+
+        // 执行下滑退出动画，动画结束后将 View 设为 INVISIBLE 挂起，不移出视图树
+        overlay.animate()
+            .setDuration(100)
+            .setInterpolator(android.view.animation.AccelerateInterpolator())
+            .setListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    // 动画结束时，把容器隐藏起来，此时不占用任何 GPU 渲染带宽
+                    if (!isVoiceOverlayShowing) {
+                        overlay.visibility = View.INVISIBLE
+                    }
+                }
+            })
+            .start()
+    }
+
+    /**
+     * 实时音量更新桥接
+     */
+    fun updateVoiceOverlayAmplitude(amplitude: Float) {
+        cachedVoiceWave?.updateAmplitude(amplitude)
     }
 }
