@@ -30,11 +30,14 @@ import org.fcitx.fcitx5.android.input.voice.WaveformView
 import org.fcitx.fcitx5.android.input.wm.EssentialWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
+import org.fcitx.fcitx5.android.link.SherpaSpeechClient
+import org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge
 import org.mechdancer.dependency.manager.must
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
+import timber.log.Timber
 
 class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), EssentialWindow,
     InputBroadcastReceiver {
@@ -52,6 +55,14 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         val preferKeyboardMap = mapOf(
             "T9" to T9TextKeyboard.Name, "T26" to TextKeyboard.Name
         )
+
+        var voiceRecordingMode: VoiceRecordingMode = VoiceRecordingMode.None
+
+        enum class VoiceRecordingMode {
+            None, //没有在录音
+            Normal, //普通模式（overlay模式）
+            KawaiiBar //工具栏模式
+        }
     }
 
     override val key: EssentialWindow.Key
@@ -72,7 +83,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     private lateinit var keyboardView: FrameLayout
     private var voiceOverlay: View? = null
-    private var voiceWave: org.fcitx.fcitx5.android.input.voice.WaveformView? = null
+    private var voiceWave: WaveformView? = null
 
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
@@ -88,6 +99,12 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
     private val keyActionListener = KeyActionListener { it, source ->
+        //音频中，额外输入的效果
+        when (voiceRecordingMode) {
+            VoiceRecordingMode.None -> {}
+            VoiceRecordingMode.KawaiiBar -> stopKawaiiBarVoiceRecording()
+            VoiceRecordingMode.Normal -> stopNormalVoiceRecording()
+        }
         if (it is KeyAction.LayoutSwitchAction) {
             switchLayout(it.act)
         } else {
@@ -188,7 +205,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     override fun onDetached() {
         // 清理语音覆盖层，避免窗口切换后残留
-        hideVoiceOverlay()
+        stopNormalVoiceRecording()
         currentKeyboard?.let {
             it.onDetach()
             it.keyActionListener = null
@@ -218,6 +235,22 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         }
     }
 
+    fun startKawaiiBarVoiceRecording() {
+        if (voiceRecordingMode != VoiceRecordingMode.None) return
+
+        service.updateBarIsVoiceRecording(true)
+        SherpaSpeechClient.startHoldSession(service)
+        voiceRecordingMode = VoiceRecordingMode.KawaiiBar
+    }
+
+    fun stopKawaiiBarVoiceRecording() {
+        service.updateBarIsVoiceRecording(false)
+        service.currentInputConnection.finishComposingText()
+        SherpaSpeechClient.stopHoldSession()
+        voiceRecordingMode = VoiceRecordingMode.None
+    }
+
+
     // =====================================================================
     // 🌟 优化核心：将语音覆盖层与波形 View 变成长驻成员，确保全生命周期【只实例化和绘制一次】
     // =====================================================================
@@ -228,9 +261,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     /**
      * 显示“语音输入占位”覆盖层（零内存分配、只会绘制一次的终极优化版）
      */
-    fun showVoiceOverlay() {
-        if (isVoiceOverlayShowing) return
-        isVoiceOverlayShowing = true
+    fun startNormalVoiceRecording() {
+        Timber.d("kkkk")
+        if (voiceRecordingMode != VoiceRecordingMode.None) return
+        voiceRecordingMode = VoiceRecordingMode.Normal
 
         // 1. 获取或懒加载初始化语音覆盖层（有且仅执行一次）
         var overlay = voiceOverlayLayout
@@ -276,10 +310,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     /**
      * 激活覆盖层内的声波动画
      */
-    fun startVoiceOverlayWave() {
+    fun startVoiceOverlay() {
+        Timber.d("mmmm")
         val wave = cachedVoiceWave ?: return
         val overlay = voiceOverlayLayout ?: return
-        wave.start()
 
         val currentBgColor = when (val t = theme) {
             is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
@@ -290,32 +324,34 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             currentBgColor
         ), Color.blue(currentBgColor)))
 
-        overlay.bringToFront()
-        wave.visibility = View.VISIBLE
-        overlay.visibility = View.VISIBLE
-
         overlay.animate()
             .alpha(1f)
             .setDuration(10)  // 淡入动画时长 10ms
             .setInterpolator(android.view.animation.DecelerateInterpolator())
             .setListener(null)
             .start()
+
+        overlay.bringToFront()
+        overlay.visibility = View.VISIBLE
+        wave.visibility = View.VISIBLE
+        wave.start()
+    }
+
+    fun startVoiceHoldSession() {
+        SherpaSpeechClient.startHoldSession(service)
+    }
+
+    fun getVoiceRecodingMode(): VoiceRecordingMode{
+        return voiceRecordingMode
     }
 
     /**
      * 隐藏“语音输入占位”覆盖层（不释放对象，仅隐藏）
      */
-    fun hideVoiceOverlay() {
-        if (!isVoiceOverlayShowing) return
-        isVoiceOverlayShowing = false
+    fun stopNormalVoiceRecording() {
+        if (voiceRecordingMode != VoiceRecordingMode.Normal) return
 
         val overlay = voiceOverlayLayout ?: return
-
-        // 优雅停止前面改造过的低功耗波形工作线程
-        try { cachedVoiceWave?.stop() } catch (_: Throwable) {}
-        cachedVoiceWave?.visibility = View.INVISIBLE
-
-        // 执行下滑退出动画，动画结束后将 View 设为 INVISIBLE 挂起，不移出视图树
         overlay.animate()
             .setDuration(100)
             .setInterpolator(android.view.animation.AccelerateInterpolator())
@@ -328,6 +364,15 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
                 }
             })
             .start()
+
+        VoiceOverlayUiBridge.clear()
+        SherpaSpeechClient.stopHoldSession()
+
+        // 优雅停止前面改造过的低功耗波形工作线程
+        try { cachedVoiceWave?.stop() } catch (_: Throwable) {}
+        cachedVoiceWave?.visibility = View.INVISIBLE
+        voiceOverlayLayout?.visibility = View.INVISIBLE
+        voiceRecordingMode = VoiceRecordingMode.None
     }
 
     /**

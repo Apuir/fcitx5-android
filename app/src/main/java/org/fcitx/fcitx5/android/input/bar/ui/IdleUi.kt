@@ -8,11 +8,12 @@ import android.content.Context
 import android.transition.Slide
 import android.transition.TransitionManager
 import android.transition.TransitionSet
-import android.view.View
 import android.view.Gravity
+import android.view.View
 import android.view.animation.AlphaAnimation
 import android.view.animation.AnimationSet
 import android.view.animation.TranslateAnimation
+import android.widget.FrameLayout
 import android.widget.Space
 import android.widget.ViewAnimator
 import org.fcitx.fcitx5.android.R
@@ -23,6 +24,7 @@ import org.fcitx.fcitx5.android.input.bar.ui.idle.ButtonsBarUi
 import org.fcitx.fcitx5.android.input.bar.ui.idle.ClipboardSuggestionUi
 import org.fcitx.fcitx5.android.input.bar.ui.idle.InlineSuggestionsUi
 import org.fcitx.fcitx5.android.input.bar.ui.idle.NumberRow
+import org.fcitx.fcitx5.android.input.bar.ui.widget.RecordingWaveView
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import splitties.dimensions.dp
@@ -36,8 +38,8 @@ import splitties.views.dsl.constraintlayout.matchConstraints
 import splitties.views.dsl.constraintlayout.startOfParent
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
-import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.frameLayout
+import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
 import splitties.views.imageResource
 import timber.log.Timber
@@ -50,7 +52,7 @@ class IdleUi(
 ) : Ui {
 
     enum class State {
-        Empty, Toolbar, Clipboard, NumberRow, InlineSuggestion
+        Empty, Toolbar, Clipboard, NumberRow, InlineSuggestion, Recording
     }
 
     var currentState = State.Empty
@@ -89,18 +91,38 @@ class IdleUi(
 
     val inlineSuggestionsBar = InlineSuggestionsUi(ctx)
 
+    // ==========================================
+    // 组装内嵌精致三点呼吸 View 的录音栏容器
+    // ==========================================
+    val recordingBar = FrameLayout(ctx).apply {
+        val waveView = RecordingWaveView(ctx, theme)
+        add(waveView, lParams(matchParent, matchParent))
+
+        addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                if (disableAnimation) return
+                waveView.setThemeColor(theme)
+                waveView.startAnimation()
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                waveView.stopAnimation()
+            }
+        })
+    }
+
     private val animator = ViewAnimator(ctx).apply {
-        add(emptyBar, lParams(matchParent, matchParent))
-        add(buttonsUi.root, lParams(matchParent, matchParent))
-        add(clipboardUi.root, lParams(matchParent, matchParent))
-        add(inlineSuggestionsBar.root, lParams(matchParent, matchParent))
+        add(emptyBar, lParams(matchParent, matchParent))                  // index 0
+        add(buttonsUi.root, lParams(matchParent, matchParent))             // index 1
+        add(clipboardUi.root, lParams(matchParent, matchParent))           // index 2
+        add(inlineSuggestionsBar.root, lParams(matchParent, matchParent))   // index 3
+        add(recordingBar, lParams(matchParent, matchParent))               // index 4
     }
 
     private val inAnimation by lazy {
         AnimationSet(true).apply {
             duration = 200L
             addAnimation(AlphaAnimation(0f, 1f))
-            // 2 stands for Animation.RELATIVE_TO_PARENT
             addAnimation(TranslateAnimation(2, -0.3f * translateDirection, 2, 0f, 0, 0f, 0, 0f))
         }
     }
@@ -170,7 +192,17 @@ class IdleUi(
         }
     }
 
+    // 保存外部传入的普通键盘状态下的收起回调，以便从录音状态切回时可以正确还原
+    private var normalHideKeyboardCallback: View.OnClickListener? = null
+    private var isVoiceInputMode = false
+
     fun setHideKeyboardIsVoiceInput(isVoiceInput: Boolean, callback: View.OnClickListener) {
+        isVoiceInputMode = isVoiceInput
+        normalHideKeyboardCallback = callback
+
+        // 如果当前正是录音状态，图标更新逻辑接管给 updateState 处理，这里不覆盖取消按钮
+        if (currentState == State.Recording) return
+
         if (isVoiceInput) {
             hideKeyboardButton.setIcon(R.drawable.ic_baseline_keyboard_voice_24)
             hideKeyboardButton.contentDescription = ctx.getString(R.string.switch_to_voice_input)
@@ -179,6 +211,15 @@ class IdleUi(
             hideKeyboardButton.contentDescription = ctx.getString(R.string.hide_keyboard)
         }
         hideKeyboardButton.setOnClickListener(callback)
+    }
+
+    /**
+     * 提供给外部 Component（如 KawaiiBarComponent）调用的方法，用于监听用户的取消录音动作
+     */
+    fun setOnCancelRecordingListener(callback: View.OnClickListener) {
+        if (currentState == State.Recording) {
+            hideKeyboardButton.setOnClickListener(callback)
+        }
     }
 
     private fun clearAnimation() {
@@ -210,19 +251,47 @@ class IdleUi(
             !fromUser ||
             disableAnimation ||
             (state == State.InlineSuggestion || currentState == State.InlineSuggestion) ||
-            (state == State.NumberRow || currentState == State.NumberRow)
+            (state == State.NumberRow || currentState == State.NumberRow) ||
+            (state == State.Recording || currentState == State.Recording)
         ) {
             clearAnimation()
         } else {
             setAnimation()
         }
+
+        val previousState = currentState
+        currentState = state
+
         when (state) {
             State.Empty -> animator.displayedChild = 0
             State.Toolbar -> animator.displayedChild = 1
             State.Clipboard -> animator.displayedChild = 2
             State.NumberRow -> {}
             State.InlineSuggestion -> animator.displayedChild = 3
+            State.Recording -> animator.displayedChild = 4
         }
+
+        // ==========================================
+        // 核心改动：录音状态下动态改变右侧按钮为取消按钮
+        // ==========================================
+        if (state == State.Recording) {
+            // 左边菜单键直接隐去
+            menuButton.visibility = View.INVISIBLE
+            // 右边键保持可见，但变身为“取消”按钮 (使用标准的关闭/清除图标)
+            hideKeyboardButton.visibility = View.VISIBLE
+            hideKeyboardButton.setIcon(R.drawable.ic_baseline_close_24)
+        } else {
+            // 切出录音状态，恢复两边按键的原始可见度
+            menuButton.visibility = View.VISIBLE
+            hideKeyboardButton.visibility = View.VISIBLE
+
+            // 如果是从录音状态切回来的，需要把右侧按钮的图标与点击事件回滚还原
+            if (previousState == State.Recording) {
+                setHideKeyboardIsVoiceInput(
+                    isVoiceInputMode, normalHideKeyboardCallback ?: View.OnClickListener {})
+            }
+        }
+
         if (state == State.NumberRow) {
             numberRow.keyActionListener = commonKeyActionListener.listener
             numberRow.popupActionListener = popup.listener
@@ -231,7 +300,7 @@ class IdleUi(
             }
             numberRow.visibility = View.VISIBLE
             idleBody.visibility = View.GONE
-        } else if (currentState == State.NumberRow) {
+        } else if (previousState == State.NumberRow) {
             if (fromUser && !disableAnimation) {
                 enableSlideTransition(idleBody, numberRow, Gravity.START, Gravity.END)
             }
@@ -241,7 +310,6 @@ class IdleUi(
             numberRow.popupActionListener = null
             popup.dismissAll()
         }
-        currentState = state
         updateMenuButtonContentDescription()
         updateMenuButtonRotation(instant = !fromUser)
     }

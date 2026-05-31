@@ -369,4 +369,7 @@ class InputView(
         super.onDetachedFromWindow()
     }
 
+    fun updateBarIsVoiceRecording(active: Boolean) {
+        kawaiiBar.updateIsRecording(active)
+    }
 }

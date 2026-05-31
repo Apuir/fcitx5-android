@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.core.FcitxAPI
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge
 import org.fcitx.fcitx5.android.input.broadcast.PreeditEmptyStateComponent
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
 import org.fcitx.fcitx5.android.input.dependency.context
@@ -35,12 +36,15 @@ import org.fcitx.fcitx5.android.input.keyboard.KeyAction.UnicodeAction
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
+import org.fcitx.fcitx5.android.link.SherpaSpeechClient
 import org.fcitx.fcitx5.android.utils.switchToNextIME
 import org.mechdancer.dependency.Dependent
 import org.mechdancer.dependency.UniqueComponent
 import org.mechdancer.dependency.manager.ManagedHandler
 import org.mechdancer.dependency.manager.managedHandler
 import org.mechdancer.dependency.manager.must
+import org.mechdancer.dependency.scope
+import timber.log.Timber
 
 class CommonKeyActionListener :
     UniqueComponent<CommonKeyActionListener>(), Dependent, ManagedHandler by managedHandler() {
@@ -116,8 +120,12 @@ class CommonKeyActionListener :
                 is KeyAction.ClearAction -> {
                     service.clearContextOrInput()
                 }
-                is KeyAction.VoiceAction ->{
-                    service.switchVoiceInput()
+                is KeyAction.VoiceAction -> {
+                    runCatching {
+                        val kw =
+                            (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
+                        kw.startKawaiiBarVoiceRecording()
+                    }
                 }
                 is LangSwitchAction -> {
                     when (langSwitchKeyBehavior) {
@@ -195,21 +203,27 @@ class CommonKeyActionListener :
                         }
                         SpaceLongPressBehavior.ShowPicker -> showInputMethodPicker()
                         SpaceLongPressBehavior.VoiceInput -> {
-                            // 先显示语音占位覆盖层，并注册 UI 桥接回调，再启动外部言犀会话
                             runCatching {
-                                val kw = (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
-                                ContextCompat.getMainExecutor(service).execute { kw.showVoiceOverlay() }
-                                org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge.onRecordingStarted = {
-                                    ContextCompat.getMainExecutor(service).execute { kw.startVoiceOverlayWave() }
+                                val kw =
+                                    (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
+                                if (kw.getVoiceRecodingMode() != KeyboardWindow.Companion.VoiceRecordingMode.None) {
+                                    return@KeyActionListener
                                 }
-                                org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge.onAmplitude = { amp ->
-                                    ContextCompat.getMainExecutor(service).execute { kw.updateVoiceOverlayAmplitude(amp) }
+                                ContextCompat.getMainExecutor(service).execute { kw.startNormalVoiceRecording() }
+                                VoiceOverlayUiBridge.onRecordingStarted = {
+                                    ContextCompat.getMainExecutor(service)
+                                        .execute { kw.startVoiceOverlay() }
                                 }
-                                org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge.onDone = {
-                                    ContextCompat.getMainExecutor(service).execute { kw.hideVoiceOverlay() }
+                                VoiceOverlayUiBridge.onAmplitude = { amp ->
+                                    ContextCompat.getMainExecutor(service)
+                                        .execute { kw.updateVoiceOverlayAmplitude(amp) }
                                 }
+                                VoiceOverlayUiBridge.onDone = {
+                                    ContextCompat.getMainExecutor(service)
+                                        .execute { kw.stopNormalVoiceRecording() }
+                                }
+                                kw.startVoiceHoldSession()
                             }
-                            org.fcitx.fcitx5.android.link.SherpaSpeechClient.startHoldSession(service)
                         }
                     }
                 }
@@ -217,10 +231,8 @@ class CommonKeyActionListener :
                     // 先隐藏覆盖层，再发停止会话，避免闪烁
                     runCatching {
                         val kw = (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
-                        ContextCompat.getMainExecutor(service).execute { kw.hideVoiceOverlay() }
+                        ContextCompat.getMainExecutor(service).execute { kw.stopNormalVoiceRecording() }
                     }
-                    org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge.clear()
-                    org.fcitx.fcitx5.android.link.SherpaSpeechClient.stopHoldSession()
                 }
                 else -> {}
             }

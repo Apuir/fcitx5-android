@@ -324,13 +324,6 @@
     <string name="t9_sidebar_column">側邊欄顯示數量</string>
     <string name="t9_replace_voice_btn">使用此符號取代語音輸入鍵</string>
     <string name="enable_mixed_number_keyboard">啟用混合數字鍵盤</string>
-    <!-- Yanxi AIDL linkage error messages -->
-    <string name="asrkb_err_busy">語音服務忙碌中，請稍後再試。</string>
-    <string name="asrkb_err_feature_disabled">請先在言犀中開啟「允許外部輸入法聯動（AIDL）。</string>
-    <string name="asrkb_client_need_mic_permission">小企鵝需要麥克風權限以進行語音輸入。</string>
-    <string name="asrkb_err_audio_record_failed">音訊錄製初始化失敗，麥克風可能被其他應用程式占用。</string>
-    <string name="asrkb_err_start_failed_with_code">啟動會話失敗（錯誤碼 %1$d）</string>
-    <string name="asrkb_err_service_error_with_code">語音服務錯誤（錯誤碼 %1$d）</string>
     <string name="voice_layout">語音佈局</string>
     <string name="voice_keyboard_style">語音鍵盤樣式</string>
     <string name="particle_ring">散射粒子環</string>

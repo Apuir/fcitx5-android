@@ -29,6 +29,7 @@ object SherpaSpeechClient {
     private val streamRef = AtomicReference<AtomicReference<OfflineStream?>?>()
     // 采用双重引用或直接维持标准 AtomicReference
     private val currentStreamRef = AtomicReference<OfflineStream?>(null)
+    private val punctuationRef = AtomicReference<OfflinePunctuation?>(null)
 
     // 使用 AtomicBoolean 确保多线程状态切换的可见性与原子性
     private val isHolding = AtomicBoolean(false)
@@ -61,6 +62,7 @@ object SherpaSpeechClient {
 
             var numThreads = 4
             var modelName = "model.int8.onnx"
+            var punctModelName = "punct.model.int8.onnx"
             var language = "auto"
             var provider = "cpu"
             var decodingMethod = "greedy_search"
@@ -71,6 +73,7 @@ object SherpaSpeechClient {
                     val json = JSONObject(jsonString)
                     numThreads = json.optInt("numThreads", numThreads)
                     modelName = json.optString("model", modelName)
+                    punctModelName = json.optString("punctModel", punctModelName)
                     language = json.optString("language", language)
                     provider = json.optString("provider", provider)
                     decodingMethod = json.optString("decodingMethod", decodingMethod)
@@ -85,8 +88,9 @@ object SherpaSpeechClient {
                 Timber.e("❌ 初始化终止：未找到指定的模型文件或词表。")
                 return false
             }
-
+            val punctModelFile = File(voiceDir, punctModelName)
             return try {
+                // 1. 初始化语音识别 ASR 引擎
                 val senseVoiceConfig = OfflineSenseVoiceModelConfig(
                     model = modelFile.absolutePath,
                     language = language,
@@ -109,7 +113,30 @@ object SherpaSpeechClient {
                 )
 
                 recognizerRef.set(OfflineRecognizer(null, config))
-                Timber.i("🚀 Sherpa-onnx 外置离线引擎初始化成功！")
+                Timber.i("🚀 Sherpa-onnx 外置离线 ASR 引擎初始化成功！")
+
+                // 2. 初始化标点模型
+                if (punctModelFile.exists()) {
+                    try {
+                        val punctConfig = OfflinePunctuationConfig(
+                            model = OfflinePunctuationModelConfig(
+                                ctTransformer = punctModelFile.absolutePath,
+                                numThreads = numThreads,
+                                debug = false,
+                                provider = provider
+                            )
+                        )
+                        punctuationRef.set(OfflinePunctuation(null, punctConfig))
+                        Timber.i("🎯 标点模型加载成功: ${punctModelFile.name}")
+                    } catch (e: Throwable) {
+                        Timber.e(e, "⚠️ 标点模型加载失败，将输出无标点文本")
+                        punctuationRef.set(null)
+                    }
+                } else {
+                    Timber.w("⚠️ 未能在 voice 目录下找到标点模型，将输出无标点纯文本")
+                    punctuationRef.set(null)
+                }
+
                 true
             } catch (e: Throwable) {
                 Timber.e(e, "❌ 外置引擎模型初始化崩溃")
@@ -127,7 +154,6 @@ object SherpaSpeechClient {
         serviceRef = WeakReference(service)
 
         service.lifecycleScope.launch {
-            // 切到 IO 线程检查/初始化引擎
             val initSuccess = withContext(Dispatchers.IO) { initEngineIfNeeded(service) }
 
             if (initSuccess) {
@@ -156,13 +182,10 @@ object SherpaSpeechClient {
      */
     fun stopHoldSession() {
         if (!isHolding.compareAndSet(true, false)) return
-
         val job = audioJob
         audioJob = null
-
         serviceRef?.get()?.let { s ->
             s.lifecycleScope.launch {
-                // 【核心死锁防护】通过 cancelAndJoin 等待音频协程完全退出，确保最后一次解码和资源释放单向顺序执行
                 job?.cancelAndJoin()
                 s.currentInputConnection?.finishComposingText()
                 clearReferences()
@@ -196,7 +219,6 @@ object SherpaSpeechClient {
                 val fmt = AudioFormat.ENCODING_PCM_16BIT
                 val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, ch, fmt)
 
-                // 每帧大小设为 80ms
                 val chunkBytes = (SAMPLE_RATE * 80 / 1000) * 2
                 val bufSize = minBuf.coerceAtLeast(chunkBytes * 2)
 
@@ -213,15 +235,10 @@ object SherpaSpeechClient {
                 var notifiedRecordingStarted = false
                 var loopCounter = 0
 
-                // --- 智能静音过滤状态机 ---
-                var hasRealAudioEntered = false // 标记这轮长按中，用户是否开口说话了
-                var continuousSilenceCount = 0  // 连续静音的帧数计数（1帧=80ms）
-
-                // 尾音安全缓冲区：即使被判定为静音，只要之前说话过，就强制完整投喂此帧。
-                // 10 帧 * 80ms = 800ms 的安全滑动窗缓冲，完美承接“了、啊、呢”等弱尾音
+                var hasRealAudioEntered = false
+                var continuousSilenceCount = 0
                 val maxTailBufferFrames = 10
 
-                // 只要协程处于活动状态且用户仍在长按，并且 AudioRecord 正在录音，就持续循环
                 while (isActive && isHolding.get() && rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     val n = try { rec.read(chunk, 0, chunk.size) } catch (_: Throwable) { -1 }
                     if (n < 0) break
@@ -244,64 +261,61 @@ object SherpaSpeechClient {
                     val amp = calculateAmplitude(chunk, n)
                     val floatChunk = FloatArray(sampleCount)
 
-                    // 1. 振幅门限判断
                     val isCurrentFrameSpeech = amp >= NOISE_THRESHOLD
 
                     if (isCurrentFrameSpeech) {
                         continuousSilenceCount = 0
-                        hasRealAudioEntered = true // 激活状态机
+                        hasRealAudioEntered = true
                     } else {
                         continuousSilenceCount++
                     }
 
-                    // 【核心改动】不论当前帧是否是静音，都保留原始采样率缩放（不再强行抹成纯 0.0f）
-                    // 确保隐藏在“静音”阈值之下的微弱语气尾音信号不被物理抹杀
                     for (i in 0 until sampleCount) {
                         floatChunk[i] = shortChunk[i] / 32768.0f
                     }
 
-                    // 用于在锁外部承接识别结果的临时变量
                     var pendingText: String? = null
 
-                    // 2. 【智能滑窗拦截】进入锁环境，只做纯 CPU/Native 运算，杜绝挂起
+                    // ─── 优化点 1：流式运行中解码与标点追加（锁内部） ───
                     synchronized(audioLock) {
                         val engine = recognizerRef.get()
                         val stream = currentStreamRef.get()
+                        val puncEngine = punctuationRef.get()
+
                         if (engine != null && stream != null) {
-
                             if (hasRealAudioEntered) {
-                                // 策略：只要曾经说过话，在刚转为静音的 800ms 缓冲区内，必须继续投喂！
                                 if (continuousSilenceCount <= maxTailBufferFrames) {
-
                                     stream.acceptWaveform(floatChunk, SAMPLE_RATE)
 
-                                    // 降低非流式（Offline）模型的中间层解码频率，每 8 轮（约 640ms）解码一次预览
                                     loopCounter++
                                     if (loopCounter % 8 == 0) {
                                         try {
                                             engine.decode(stream)
                                             val resultObj = engine.getResult(stream)
                                             if (resultObj.text.isNotBlank()) {
-                                                pendingText = cleanSenseVoiceText(resultObj.text)
+                                                val cleanText = cleanSenseVoiceText(resultObj.text)
+                                                // 如果标点符号引擎就绪，追加动态断句标点
+                                                pendingText = if (puncEngine != null && cleanText.isNotBlank()) {
+                                                    puncEngine.addPunctuation(cleanText)
+                                                } else {
+                                                    cleanText
+                                                }
                                             }
                                         } catch (e: Throwable) {
                                             Timber.e(e, "流式运行中解码失败")
                                         }
                                     }
-                                } else {
-                                    // 超过 800ms 的绝对静音，视为用户彻底闭嘴，截断投喂，防止模型幻觉
                                 }
                             }
                         }
-                    } // 🔓 锁瞬间释放
-                    // 3. 【安全锁外挂起】切换到主线程更新输入法框
+                    }
+
                     if (!pendingText.isNullOrBlank()) {
                         withContext(Dispatchers.Main) {
                             serviceRef?.get()?.currentInputConnection?.setComposingText(pendingText, 1)
                         }
                     }
 
-                    // 刷新 UI 波形振幅
                     withContext(Dispatchers.Main) {
                         runCatching { VoiceOverlayUiBridge.onAmplitude?.invoke(amp) }
                     }
@@ -309,26 +323,33 @@ object SherpaSpeechClient {
                     delay(5)
                 }
 
-                // 4. 【最终解码上屏】当用户抬起手，只要期间确实说过话，才做最后全量解码
+                // ─── 优化点 2：松手时全量完美断句与标点追加（锁内部） ───
                 var finalCleanText: String? = null
 
                 synchronized(audioLock) {
                     val engine = recognizerRef.get()
                     val stream = currentStreamRef.get()
+                    val puncEngine = punctuationRef.get()
+
                     if (engine != null && stream != null && hasRealAudioEntered) {
                         try {
                             engine.decode(stream)
                             val finalResult = engine.getResult(stream)
                             if (finalResult.text.isNotBlank()) {
-                                finalCleanText = cleanSenseVoiceText(finalResult.text)
+                                val cleanText = cleanSenseVoiceText(finalResult.text)
+                                // 全量文本送入标点模型加工
+                                finalCleanText = if (puncEngine != null && cleanText.isNotBlank()) {
+                                    puncEngine.addPunctuation(cleanText)
+                                } else {
+                                    cleanText
+                                }
                             }
                         } catch (e: Throwable) {
                             Timber.e(e, "松手后最终解码失败")
                         }
                     }
-                } // 🔓 锁释放
+                }
 
-                // 在锁外安全上屏最终全量文本，语气词一个都不会漏
                 if (!finalCleanText.isNullOrBlank()) {
                     withContext(Dispatchers.Main) {
                         serviceRef?.get()?.currentInputConnection?.setComposingText(finalCleanText, 1)
@@ -342,7 +363,6 @@ object SherpaSpeechClient {
                     runCatching { VoiceOverlayUiBridge.onDone?.invoke() }
                 }
             } finally {
-                // 确保任何情况下都能彻底关闭和释放 AudioRecord 硬件资源
                 try {
                     rec?.stop()
                     rec?.release()
@@ -350,7 +370,6 @@ object SherpaSpeechClient {
                 if (audioRecord == rec) {
                     audioRecord = null
                 }
-                // 在协程自收尾阶段安全释放底层 C++ Stream
                 synchronized(audioLock) {
                     try { currentStreamRef.get()?.release() } catch (_: Throwable) {}
                     currentStreamRef.set(null)
@@ -395,7 +414,7 @@ object SherpaSpeechClient {
     }
 
     private fun cleanSenseVoiceText(rawText: String): String {
-        return rawText.replace(Regex("<\\|.*?\\|>"), "").trim()
+        return rawText.trim()
     }
 
     private fun toast(ctx: Context, msg: String) {

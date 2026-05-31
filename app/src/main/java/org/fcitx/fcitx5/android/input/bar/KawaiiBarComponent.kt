@@ -114,6 +114,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var isCapabilityFlagsPassword: Boolean = false
     private var isKeyboardLayoutNumber: Boolean = false
     private var isToolbarManuallyToggled: Boolean = false
+    private var isRecording: Boolean = false // 新增：录音状态标记
 
     private enum class NumberRowState { Auto, ForceShow, ForceHide }
 
@@ -165,7 +166,6 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private fun launchClipboardTimeoutJob() {
         clipboardTimeoutJob?.cancel()
         val timeout = clipboardItemTimeout.getValue() * 1000L
-        // never transition to ClipboardTimedOut state when timeout < 0
         if (timeout < 0L) return
         clipboardTimeoutJob = service.lifecycleScope.launch {
             delay(timeout)
@@ -176,17 +176,11 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
 
     private fun evalIdleUiState(fromUser: Boolean = false) {
         val newState = when {
+            isRecording -> IdleUi.State.Recording // 录音拥有最高优先级
             numberRowState == NumberRowState.ForceShow -> IdleUi.State.NumberRow
             isClipboardFresh -> IdleUi.State.Clipboard
             isInlineSuggestionPresent -> IdleUi.State.InlineSuggestion
             isCapabilityFlagsPassword && !isKeyboardLayoutNumber && numberRowState != NumberRowState.ForceHide -> IdleUi.State.NumberRow
-            /**
-             * state matrix:
-             *                               expandToolbarByDefault
-             *                          |   \   |    true |   false
-             * isToolbarManuallyToggled |  true |   Empty | Toolbar
-             *                          | false | Toolbar |   Empty
-             */
             expandToolbarByDefault == isToolbarManuallyToggled -> IdleUi.State.Empty
             else -> IdleUi.State.Toolbar
         }
@@ -267,8 +261,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var voiceInputSubtype: Pair<String, InputMethodSubtype>? = null
 
     private val switchToVoiceInputCallback = View.OnClickListener {
-        val (id, subtype) = voiceInputSubtype ?: return@OnClickListener
-        InputMethodUtil.switchInputMethod(service, id, subtype)
+        updateIsRecording(!isRecording)
     }
 
     private val idleUi: IdleUi by lazy {
@@ -391,7 +384,6 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         candidateUi.expandButton.contentDescription = context.getString(R.string.expand_candidates_list)
     }
 
-    // set expand candidate button to close expand candidate
     private fun setExpandButtonToDetach() {
         candidateUi.expandButton.setOnClickListener {
             windowManager.attachWindow(KeyboardWindow)
@@ -400,7 +392,6 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         candidateUi.expandButton.contentDescription = context.getString(R.string.hide_candidates_list)
     }
 
-    // should be used with setExpandButtonToAttach or setExpandButtonToDetach
     private fun setExpandButtonEnabled(enabled: Boolean) {
         candidateUi.expandButton.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
     }
@@ -447,6 +438,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         }
         isCapabilityFlagsPassword = toolbarNumRowOnPassword && capFlags.has(CapabilityFlag.Password)
         isInlineSuggestionPresent = false
+        isRecording = false // 开始输入时，默认重置录音标记
         numberRowState = NumberRowState.Auto
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             idleUi.inlineSuggestionsBar.clear()
@@ -455,9 +447,17 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         val shouldShowVoiceInput =
             showVoiceInputButton && voiceInputSubtype != null && !capFlags.has(CapabilityFlag.Password)
         idleUi.setHideKeyboardIsVoiceInput(
-            shouldShowVoiceInput,
-            if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
-        )
+            shouldShowVoiceInput, {
+                if (isRecording){
+                    runCatching {
+                        updateIsRecording(false)
+                        val kw =
+                            (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
+                        kw.stopKawaiiBarVoiceRecording()
+                    }
+                }
+                if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
+            })
         evalIdleUiState()
     }
 
@@ -485,6 +485,17 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
 
     override fun onWindowDetached(window: InputWindow) {
         barStateMachine.push(WindowDetached)
+    }
+
+    /**
+     * 外部供语音识别引擎或长按事件调用的核心方法
+     */
+    fun updateIsRecording(recording: Boolean) {
+        if (this.isRecording == recording) return
+        this.isRecording = recording
+        service.lifecycleScope.launch {
+            evalIdleUiState(fromUser = true)
+        }
     }
 
     private val suggestionSize by lazy {
@@ -539,7 +550,6 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     @RequiresApi(Build.VERSION_CODES.R)
     private suspend fun inflateInlineContentView(suggestion: InlineSuggestion): InlineContentView? {
         return suspendCoroutine { c ->
-            // callback view might be null
             suggestion.inflate(context, suggestionSize, directExecutor) { v ->
                 c.resume(v)
             }

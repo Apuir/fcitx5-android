@@ -68,6 +68,7 @@ import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.cursor.CursorRange
 import org.fcitx.fcitx5.android.input.cursor.CursorTracker
 import org.fcitx.fcitx5.android.link.SherpaSpeechClient
+import org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
 import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.forceShowSelf
@@ -83,8 +84,6 @@ import timber.log.Timber
 import kotlin.math.max
 
 class FcitxInputMethodService : LifecycleInputMethodService() {
-
-    private val preferredVoiceInput by AppPrefs.getInstance().keyboard.preferredVoiceInput
 
     private lateinit var composingPreedit: String
 
@@ -548,12 +547,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
-    fun switchVoiceInput() {
-        val voiceInputSubtype = InputMethodUtil.findVoiceSubtype(preferredVoiceInput)
-        val (id, subtype) = voiceInputSubtype ?: return
-        InputMethodUtil.switchInputMethod(this, id, subtype)
+    fun updateBarIsVoiceRecording(b: Boolean = true) {
+        inputView?.updateBarIsVoiceRecording(b)
     }
-
 
     fun cancelSelection() {
         val lastSelection = selection.latest
