@@ -124,10 +124,11 @@ class CommonKeyActionListener :
                     runCatching {
                         val kw =
                             (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
-                        VoiceOverlayUiBridge.onRecordingStarted = {
-                            ContextCompat.getMainExecutor(service)
-                                .execute { kw.startKawaiiBarVoiceOverlay() }
+                        if (kw.getVoiceRecodingMode() != KeyboardWindow.Companion.VoiceRecordingMode.None){
+                            return@runCatching
                         }
+                        ContextCompat.getMainExecutor(service)
+                            .execute { kw.startKawaiiBarVoiceOverlay() }
                         VoiceOverlayUiBridge.onDone = {
                             ContextCompat.getMainExecutor(service)
                                 .execute { kw.stopKawaiiBarVoiceRecording() }
@@ -135,7 +136,9 @@ class CommonKeyActionListener :
                         service.postFcitxJob {
                             reset()
                         }
-                        kw.startKawaiiBarVoiceRecording()
+                        service.lifecycleScope.run {
+                            kw.startKawaiiBarVoiceRecording()
+                        }
                     }
                 }
                 is LangSwitchAction -> {
@@ -218,13 +221,9 @@ class CommonKeyActionListener :
                                 val kw =
                                     (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
                                 if (kw.getVoiceRecodingMode() != KeyboardWindow.Companion.VoiceRecordingMode.None) {
-                                    return@KeyActionListener
+                                    return@runCatching
                                 }
                                 ContextCompat.getMainExecutor(service).execute { kw.startNormalVoiceRecording() }
-                                VoiceOverlayUiBridge.onRecordingStarted = {
-                                    ContextCompat.getMainExecutor(service)
-                                        .execute { kw.startVoiceOverlay() }
-                                }
                                 VoiceOverlayUiBridge.onAmplitude = { amp ->
                                     ContextCompat.getMainExecutor(service)
                                         .execute { kw.updateVoiceOverlayAmplitude(amp) }
@@ -236,7 +235,9 @@ class CommonKeyActionListener :
                                 service.postFcitxJob {
                                     reset()
                                 }
-                                kw.startVoiceHoldSession()
+                                service.lifecycleScope.run {
+                                    kw.startVoiceHoldSession()
+                                }
                             }
                         }
                     }

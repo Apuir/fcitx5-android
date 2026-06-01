@@ -4,6 +4,7 @@
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.text.InputType
 import android.view.Gravity
@@ -33,6 +34,7 @@ import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.link.SherpaSpeechClient
 import org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge
 import org.mechdancer.dependency.manager.must
+import splitties.views.backgroundColor
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
@@ -82,9 +84,6 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         }
 
     private lateinit var keyboardView: FrameLayout
-    private var voiceOverlay: View? = null
-    private var voiceWave: WaveformView? = null
-
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
@@ -99,11 +98,15 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
     private val keyActionListener = KeyActionListener { it, source ->
-        //音频中，额外输入的效果
-        when (voiceRecordingMode) {
-            VoiceRecordingMode.None -> {}
-            VoiceRecordingMode.KawaiiBar -> stopKawaiiBarVoiceRecording()
-            VoiceRecordingMode.Normal -> stopNormalVoiceRecording()
+        if (voiceRecordingMode != VoiceRecordingMode.None) {
+            when (voiceRecordingMode) {
+                VoiceRecordingMode.KawaiiBar -> stopKawaiiBarVoiceRecording()
+                VoiceRecordingMode.Normal -> stopNormalVoiceRecording()
+                else -> {}
+            }
+            if (it is KeyAction.VoiceAction) {
+                return@KeyActionListener
+            }
         }
         if (it is KeyAction.LayoutSwitchAction) {
             switchLayout(it.act)
@@ -244,7 +247,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     fun stopKawaiiBarVoiceRecording() {
         service.updateBarIsVoiceRecording(false)
         service.currentInputConnection.finishComposingText()
+
         SherpaSpeechClient.stopHoldSession()
+        VoiceOverlayUiBridge.clear()
+
         voiceRecordingMode = VoiceRecordingMode.None
     }
 
@@ -252,69 +258,61 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         service.updateBarIsVoiceRecording(true)
     }
 
-    // =====================================================================
-    // 🌟 优化核心：将语音覆盖层与波形 View 变成长驻成员，确保全生命周期【只实例化和绘制一次】
-    // =====================================================================
     private var voiceOverlayLayout: FrameLayout? = null
     private var cachedVoiceWave: WaveformView? = null
-    private var isVoiceOverlayShowing = false
 
-    /**
-     * 显示“语音输入占位”覆盖层（零内存分配、只会绘制一次的终极优化版）
-     */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createNormalVoiceRecordingView() {
+        val bgColor = when (val t = theme) {
+            is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
+            else -> theme.backgroundColor
+        }
+        val overlay = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(bgColor)
+            isClickable = false
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            // 首次创建时先隐藏，且扔到 Y 轴屏幕下方，为自底向上动画做基准准备
+            visibility = View.INVISIBLE
+        }
+        val wave = WaveformView(context).apply {
+            val candidateColors = listOf(
+                theme.genericActiveForegroundColor,
+                theme.accentKeyBackgroundColor,
+                theme.keyTextColor
+            )
+            val lineColor = candidateColors.firstOrNull {
+                ColorUtils.calculateContrast(it, bgColor) >= 2.5
+            } ?: theme.genericActiveForegroundColor
+            setWaveformColor(lineColor)
+            visibility = View.INVISIBLE
+        }
+
+        overlay.addView(
+            wave, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+        overlay.setOnTouchListener { _, _ -> true }
+        // 🌟 整个生命周期内，有且仅有一次 addView 挂载操作，彻底免除后续的测绘惩罚
+        keyboardView.addView(overlay)
+        voiceOverlayLayout = overlay
+        cachedVoiceWave = wave
+    }
+
     fun startNormalVoiceRecording() {
-        Timber.d("kkkk")
         if (voiceRecordingMode != VoiceRecordingMode.None) return
         voiceRecordingMode = VoiceRecordingMode.Normal
 
-        // 1. 获取或懒加载初始化语音覆盖层（有且仅执行一次）
-        var overlay = voiceOverlayLayout
-        if (overlay == null) {
-            val bgColor = when (val t = theme) {
-                is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
-                else -> theme.backgroundColor
-            }
-
-            overlay = FrameLayout(context).apply {
-                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-                setBackgroundColor(bgColor)
-                isClickable = false
-                isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                // 首次创建时先隐藏，且扔到 Y 轴屏幕下方，为自底向上动画做基准准备
-                visibility = View.INVISIBLE
-            }
-
-            val wave = WaveformView(context).apply {
-                val candidateColors = listOf(
-                    theme.genericActiveForegroundColor,
-                    theme.accentKeyBackgroundColor,
-                    theme.keyTextColor
-                )
-                val lineColor = candidateColors.firstOrNull {
-                    ColorUtils.calculateContrast(it, bgColor) >= 2.5
-                } ?: theme.genericActiveForegroundColor
-                setWaveformColor(lineColor)
-                visibility = View.INVISIBLE
-            }
-
-            overlay.addView(wave, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
-            // 🌟 整个生命周期内，有且仅有一次 addView 挂载操作，彻底免除后续的测绘惩罚
-            keyboardView.addView(overlay)
-
-            voiceOverlayLayout = overlay
-            cachedVoiceWave = wave
+        if (voiceOverlayLayout == null){
+            createNormalVoiceRecordingView()
         }
-    }
 
-    /**
-     * 激活覆盖层内的声波动画
-     */
-    fun startVoiceOverlay() {
         val wave = cachedVoiceWave ?: return
         val overlay = voiceOverlayLayout ?: return
-
         val currentBgColor = when (val t = theme) {
             is org.fcitx.fcitx5.android.data.theme.Theme.Builtin -> t.keyboardColor
             else -> theme.backgroundColor
@@ -323,18 +321,23 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         overlay.setBackgroundColor(Color.argb(alpha, Color.red(currentBgColor), Color.green(
             currentBgColor
         ), Color.blue(currentBgColor)))
-
+        overlay.alpha = 0f
+        overlay.apply {
+            scaleX = 1.3f
+            scaleY = 1.3f
+        }
         overlay.animate()
             .alpha(1f)
-            .setDuration(10)  // 淡入动画时长 10ms
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(300)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
             .setListener(null)
             .start()
-
         overlay.bringToFront()
-        overlay.visibility = View.VISIBLE
-        wave.visibility = View.VISIBLE
         wave.start()
+        wave.visibility = View.VISIBLE
+        overlay.visibility = View.VISIBLE
     }
 
     fun startVoiceHoldSession() {
@@ -358,7 +361,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             .setListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     // 动画结束时，把容器隐藏起来，此时不占用任何 GPU 渲染带宽
-                    if (!isVoiceOverlayShowing) {
+                    if (overlay.visibility == View.VISIBLE) {
                         overlay.visibility = View.INVISIBLE
                     }
                 }

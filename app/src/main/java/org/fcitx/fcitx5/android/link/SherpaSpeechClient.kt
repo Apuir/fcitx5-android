@@ -24,9 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 object SherpaSpeechClient {
-
     private val recognizerRef = AtomicReference<OfflineRecognizer?>(null)
-    private val streamRef = AtomicReference<AtomicReference<OfflineStream?>?>()
     // 采用双重引用或直接维持标准 AtomicReference
     private val currentStreamRef = AtomicReference<OfflineStream?>(null)
     private val punctuationRef = AtomicReference<OfflinePunctuation?>(null)
@@ -103,13 +101,13 @@ object SherpaSpeechClient {
                     senseVoice = senseVoiceConfig,
                     debug = false,
                     numThreads = numThreads,
-                    provider = provider
+                    provider = provider,
                 )
 
                 val config = OfflineRecognizerConfig(
                     featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
                     modelConfig = modelConfig,
-                    decodingMethod = decodingMethod
+                    decodingMethod = decodingMethod,
                 )
 
                 recognizerRef.set(OfflineRecognizer(null, config))
@@ -200,8 +198,10 @@ object SherpaSpeechClient {
      * 核心音频采集与流式投喂控制
      */
     private fun startAudioStreaming(service: FcitxInputMethodService) {
-        if (ContextCompat.checkSelfPermission(service, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
+        if (ContextCompat.checkSelfPermission(
+                service,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             val intent = Intent(service, MicPermissionActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -222,10 +222,18 @@ object SherpaSpeechClient {
                 val chunkBytes = (SAMPLE_RATE * 80 / 1000) * 2
                 val bufSize = minBuf.coerceAtLeast(chunkBytes * 2)
 
-                rec = try {
-                    AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE, ch, fmt, bufSize)
-                } catch (_: Throwable) {
-                    AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, ch, fmt, bufSize)
+                rec = listOf(
+                    MediaRecorder.AudioSource.MIC, MediaRecorder.AudioSource.VOICE_RECOGNITION
+                ).firstNotNullOfOrNull { source ->
+                    runCatching {
+                        AudioRecord(source, SAMPLE_RATE, ch, fmt, bufSize)
+                    }.getOrNull()?.takeIf {
+                        it.state == AudioRecord.STATE_INITIALIZED
+                    }
+                }
+                if (rec == null) {
+                    Timber.e("❌ 无法创建 AudioRecord 实例")
+                    return@launch
                 }
 
                 audioRecord = rec
@@ -240,7 +248,11 @@ object SherpaSpeechClient {
                 val maxTailBufferFrames = 10
 
                 while (isActive && isHolding.get() && rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                    val n = try { rec.read(chunk, 0, chunk.size) } catch (_: Throwable) { -1 }
+                    val n = try {
+                        rec.read(chunk, 0, chunk.size)
+                    } catch (_: Throwable) {
+                        -1
+                    }
                     if (n < 0) break
                     if (n == 0) {
                         delay(10)
@@ -256,7 +268,8 @@ object SherpaSpeechClient {
 
                     val sampleCount = n / 2
                     val shortChunk = ShortArray(sampleCount)
-                    ByteBuffer.wrap(chunk, 0, n).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortChunk)
+                    ByteBuffer.wrap(chunk, 0, n).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                        .get(shortChunk)
 
                     val amp = calculateAmplitude(chunk, n)
                     val floatChunk = FloatArray(sampleCount)
@@ -295,11 +308,12 @@ object SherpaSpeechClient {
                                             if (resultObj.text.isNotBlank()) {
                                                 val cleanText = cleanSenseVoiceText(resultObj.text)
                                                 // 如果标点符号引擎就绪，追加动态断句标点
-                                                pendingText = if (puncEngine != null && cleanText.isNotBlank()) {
-                                                    puncEngine.addPunctuation(cleanText)
-                                                } else {
-                                                    cleanText
-                                                }
+                                                pendingText =
+                                                    if (puncEngine != null && cleanText.isNotBlank()) {
+                                                        puncEngine.addPunctuation(cleanText)
+                                                    } else {
+                                                        cleanText
+                                                    }
                                             }
                                         } catch (e: Throwable) {
                                             Timber.e(e, "流式运行中解码失败")
@@ -312,7 +326,9 @@ object SherpaSpeechClient {
 
                     if (!pendingText.isNullOrBlank()) {
                         withContext(Dispatchers.Main) {
-                            serviceRef?.get()?.currentInputConnection?.setComposingText(pendingText, 1)
+                            serviceRef?.get()?.currentInputConnection?.setComposingText(
+                                pendingText, 1
+                            )
                         }
                     }
 
@@ -352,26 +368,39 @@ object SherpaSpeechClient {
 
                 if (!finalCleanText.isNullOrBlank()) {
                     withContext(Dispatchers.Main) {
-                        serviceRef?.get()?.currentInputConnection?.setComposingText(finalCleanText, 1)
+                        serviceRef?.get()?.currentInputConnection?.setComposingText(
+                            finalCleanText, 1
+                        )
                     }
                 }
 
             } catch (t: Throwable) {
-                Timber.e(t, "录音及核心推理链异常")
-                withContext(Dispatchers.Main) {
-                    serviceRef?.get()?.let { toast(it, it.getString(R.string.err_audio_record_failed)) }
-                    runCatching { VoiceOverlayUiBridge.onDone?.invoke() }
+                if (t is CancellationException) {
+                    withContext(Dispatchers.Main) {
+                        runCatching { VoiceOverlayUiBridge.onDone?.invoke() }
+                    }
+                } else {
+                    Timber.e(t, "录音及核心推理链异常")
+                    withContext(Dispatchers.Main) {
+                        serviceRef?.get()
+                            ?.let { toast(it, it.getString(R.string.err_audio_record_failed)) }
+                        runCatching { VoiceOverlayUiBridge.onDone?.invoke() }
+                    }
                 }
             } finally {
                 try {
                     rec?.stop()
                     rec?.release()
-                } catch (_: Throwable) {}
+                } catch (_: Throwable) {
+                }
                 if (audioRecord == rec) {
                     audioRecord = null
                 }
                 synchronized(audioLock) {
-                    try { currentStreamRef.get()?.release() } catch (_: Throwable) {}
+                    try {
+                        currentStreamRef.get()?.release()
+                    } catch (_: Throwable) {
+                    }
                     currentStreamRef.set(null)
                 }
             }
@@ -391,7 +420,10 @@ object SherpaSpeechClient {
     private fun resetStateDirectly() {
         isHolding.set(false)
         synchronized(audioLock) {
-            try { currentStreamRef.get()?.release() } catch (_: Throwable) {}
+            try {
+                currentStreamRef.get()?.release()
+            } catch (_: Throwable) {
+            }
             currentStreamRef.set(null)
         }
         clearReferences()

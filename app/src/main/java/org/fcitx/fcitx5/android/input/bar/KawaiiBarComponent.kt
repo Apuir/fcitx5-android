@@ -19,6 +19,7 @@ import android.widget.ViewAnimator
 import android.widget.inline.InlineContentView
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -65,6 +66,7 @@ import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import org.fcitx.fcitx5.android.input.status.StatusAreaWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
+import org.fcitx.fcitx5.android.link.VoiceOverlayUiBridge
 import org.fcitx.fcitx5.android.utils.AppUtil
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
 import org.mechdancer.dependency.DynamicScope
@@ -75,6 +77,7 @@ import splitties.views.backgroundColor
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
+import timber.log.Timber
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -191,6 +194,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     private val hideKeyboardCallback = View.OnClickListener {
+        Timber.d("zzzzzzz")
         service.requestHideSelf(0)
     }
 
@@ -263,7 +267,25 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var voiceInputSubtype: Pair<String, InputMethodSubtype>? = null
 
     private val switchToVoiceInputCallback = View.OnClickListener {
-        updateIsRecording(!isRecording)
+        runCatching {
+            val kw =
+                (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
+            if (kw.getVoiceRecodingMode() != KeyboardWindow.Companion.VoiceRecordingMode.None) {
+                return@runCatching
+            }
+            VoiceOverlayUiBridge.onRecordingStarted = {
+                ContextCompat.getMainExecutor(service)
+                    .execute { kw.startKawaiiBarVoiceOverlay() }
+            }
+            VoiceOverlayUiBridge.onDone = {
+                ContextCompat.getMainExecutor(service)
+                    .execute { kw.stopKawaiiBarVoiceRecording() }
+            }
+            service.postFcitxJob {
+                reset()
+            }
+            kw.startKawaiiBarVoiceRecording()
+        }
     }
 
     private val idleUi: IdleUi by lazy {
@@ -451,16 +473,17 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         val shouldShowVoiceInput =
             showVoiceInputButton && voiceInputSubtype != null && !capFlags.has(CapabilityFlag.Password)
         idleUi.setHideKeyboardIsVoiceInput(
-            shouldShowVoiceInput, {
-                if (isRecording){
+            shouldShowVoiceInput, View.OnClickListener {
+                if (isRecording) {
                     runCatching {
                         updateIsRecording(false)
                         val kw =
                             (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
                         kw.stopKawaiiBarVoiceRecording()
                     }
+                    return@OnClickListener
                 }
-                if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
+                if (shouldShowVoiceInput) switchToVoiceInputCallback.onClick(it) else hideKeyboardCallback.onClick(it)
             })
         evalIdleUiState()
     }

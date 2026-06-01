@@ -252,7 +252,7 @@ class SphereRippleView @JvmOverloads constructor(
     override fun setVolume(volume: Int) {
         val inputVolume = volume.coerceIn(0, 100)
         if (abs(this.targetVolume - inputVolume) > perVolume || inputVolume > 0) {
-            this.targetVolume = inputVolume
+            this.targetVolume = inputVolume + 20
             checkVolumeValue()
 
             // 🌟 主动唤醒：当输入音量信号大于 0 且引擎处于挂起状态，立刻释放锁，通知渲染线程开工

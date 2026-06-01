@@ -58,15 +58,15 @@ class WaveformView @JvmOverloads constructor(
                     SphereRippleView(context).apply {
                         backGroundColor = Color.TRANSPARENT
                         setSensibility(15)
-                        setMoveSpeed(250f)
+                        setMoveSpeed(160f)
                     }
                 }
                 WaveStyle.PARTICLE_WAVE -> {
                     ParticleWaveView(context).apply {
                         backGroundColor = Color.TRANSPARENT
-                        setPolygonSides(12)
+                        setPolygonSides(10)
                         setSensibility(15)
-                        setMoveSpeed(250f)
+                        setMoveSpeed(160f)
                     }
                 }
             }
