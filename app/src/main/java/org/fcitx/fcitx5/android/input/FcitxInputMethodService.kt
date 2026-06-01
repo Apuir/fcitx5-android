@@ -113,6 +113,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             setCandidatePagingMode(if (isVirtualKeyboard) 0 else 1)
         }
         currentInputConnection?.monitorCursorAnchor(!isVirtualKeyboard)
+        if (isVirtualKeyboard) {
+            hideStatusIcon()
+        } else {
+            showStatusIcon(StatusIconMapping.fromEntry(fcitx.runImmediately { inputMethodEntryCached }))
+        }
         window.window?.let {
             navbarMgr.evaluate(it, isVirtualKeyboard)
         }
@@ -322,6 +327,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     skipNextSubtypeChange = im
                     // [^1]: notify system that input method subtype has changed
                     switchInputMethod(InputMethodUtil.componentName, subtype)
+                }
+                if (inputDeviceMgr.evaluateOnInputMethodActivate()) {
+                    showStatusIcon(StatusIconMapping.fromEntry(event.data))
                 }
             }
             is FcitxEvent.SwitchInputMethodEvent -> {
@@ -805,8 +813,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 }
                 // anchor CandidatesView to bottom-left corner in case InputConnection does not
                 // support monitoring CursorAnchorInfo
-                workaroundNullCursorAnchorInfo()
+                candidatesView?.updateCursorAnchor(contentSize)
             }
+            showStatusIcon(StatusIconMapping.fromEntry(fcitx.runImmediately { inputMethodEntryCached }))
         }
     }
 
@@ -845,17 +854,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private val anchorPosition = floatArrayOf(0f, 0f, 0f, 0f)
 
-    /**
-     * anchor candidates view to bottom-left corner, only works if [decorLocationUpdated]
-     */
-    private fun workaroundNullCursorAnchorInfo() {
-        anchorPosition[0] = 0f
-        anchorPosition[1] = contentSize[1]
-        anchorPosition[2] = 0f
-        anchorPosition[3] = contentSize[1]
-        candidatesView?.updateCursorAnchor(anchorPosition, contentSize)
-    }
-
     override fun onUpdateCursorAnchorInfo(info: CursorAnchorInfo) {
         val bounds = info.getCharacterBounds(0)
         if (bounds != null) {
@@ -878,7 +876,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         if (anchorPosition.any(Float::isNaN)) {
             // anchor candidates view to bottom-left corner in case CursorAnchorInfo is invalid
-            workaroundNullCursorAnchorInfo()
+            candidatesView?.updateCursorAnchor(contentSize)
             return
         }
         // params of `Matrix.mapPoints` must be [x0, y0, x1, y1]
@@ -1083,6 +1081,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         postFcitxJob {
             focusOutIn()
         }
+        hideStatusIcon()
         showingDialog?.dismiss()
     }
 

@@ -330,4 +330,5 @@
     <string name="voice_keyboard_style">Voice Keyboard Style</string>
     <string name="particle_ring">Particle Ring</string>
     <string name="err_audio_record_failed">Audio Record  Failed</string>
+    <string name="edit_text_playground">EditText Playground</string>
 </resources>
