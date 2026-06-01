@@ -124,6 +124,17 @@ class CommonKeyActionListener :
                     runCatching {
                         val kw =
                             (windowManager.getEssentialWindow(KeyboardWindow) as KeyboardWindow)
+                        VoiceOverlayUiBridge.onRecordingStarted = {
+                            ContextCompat.getMainExecutor(service)
+                                .execute { kw.startKawaiiBarVoiceOverlay() }
+                        }
+                        VoiceOverlayUiBridge.onDone = {
+                            ContextCompat.getMainExecutor(service)
+                                .execute { kw.stopKawaiiBarVoiceRecording() }
+                        }
+                        service.postFcitxJob {
+                            reset()
+                        }
                         kw.startKawaiiBarVoiceRecording()
                     }
                 }
@@ -221,6 +232,9 @@ class CommonKeyActionListener :
                                 VoiceOverlayUiBridge.onDone = {
                                     ContextCompat.getMainExecutor(service)
                                         .execute { kw.stopNormalVoiceRecording() }
+                                }
+                                service.postFcitxJob {
+                                    reset()
                                 }
                                 kw.startVoiceHoldSession()
                             }

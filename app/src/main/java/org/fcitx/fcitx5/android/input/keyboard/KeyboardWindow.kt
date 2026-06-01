@@ -237,8 +237,6 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     fun startKawaiiBarVoiceRecording() {
         if (voiceRecordingMode != VoiceRecordingMode.None) return
-
-        service.updateBarIsVoiceRecording(true)
         SherpaSpeechClient.startHoldSession(service)
         voiceRecordingMode = VoiceRecordingMode.KawaiiBar
     }
@@ -250,6 +248,9 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         voiceRecordingMode = VoiceRecordingMode.None
     }
 
+    fun startKawaiiBarVoiceOverlay(){
+        service.updateBarIsVoiceRecording(true)
+    }
 
     // =====================================================================
     // 🌟 优化核心：将语音覆盖层与波形 View 变成长驻成员，确保全生命周期【只实例化和绘制一次】
@@ -311,7 +312,6 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
      * 激活覆盖层内的声波动画
      */
     fun startVoiceOverlay() {
-        Timber.d("mmmm")
         val wave = cachedVoiceWave ?: return
         val overlay = voiceOverlayLayout ?: return
 
