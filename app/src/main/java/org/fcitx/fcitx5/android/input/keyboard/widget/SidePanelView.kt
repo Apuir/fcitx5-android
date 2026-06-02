@@ -171,9 +171,14 @@ abstract class SidePanelView(
             }
         }
 
+        private var longPressTriggered = false
+
+        private val longPressRunnable = Runnable {
+            longPressTriggered = true
+        }
+
         override fun onTouchEvent(event: MotionEvent): Boolean {
             when (event.actionMasked) {
-
                 MotionEvent.ACTION_DOWN -> {
                     parent.requestDisallowInterceptTouchEvent(true)
 
@@ -185,18 +190,7 @@ abstract class SidePanelView(
                     downY = event.y
                     lastY = event.y
                     dragging = false
-
-                    pressedIndex = render.itemIndexAt(panel, event.y, scrollOffset)
-
-                    // 🌊 start ripple（无透明变化）
-                    if (pressedIndex >= 0) {
-                        rippleIndex = pressedIndex
-                        rippleX = event.x
-                        rippleY = event.y
-                        rippleRadius = width * 0.2f  // 轻微压入
-                        rippleActive = true
-                    }
-
+                    postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
                     invalidate()
                     return true
                 }
@@ -221,22 +215,36 @@ abstract class SidePanelView(
                     lastY = event.y
                     return true
                 }
-
                 MotionEvent.ACTION_UP -> {
                     velocityTracker?.addMovement(event)
                     velocityTracker?.computeCurrentVelocity(1000, maxFlingVelocity.toFloat())
 
                     val velocityY = velocityTracker?.yVelocity ?: 0f
-                    val index = pressedIndex
-                    val click = !dragging && index >= 0
+                    var index = -1
+                    var click = false
 
                     recycleVelocityTracker()
+                    removeCallbacks(longPressRunnable)
+                    if (!longPressTriggered){
+                        pressedIndex = render.itemIndexAt(panel, event.y, scrollOffset)
+                        // 🌊 start ripple（无透明变化）
+                        if (pressedIndex >= 0) {
+                            rippleIndex = pressedIndex
+                            rippleX = event.x
+                            rippleY = event.y
+                            rippleRadius = width * 0.2f  // 轻微压入
+                            rippleActive = true
+                            click = true
+                            index = pressedIndex
+                        }
+                        invalidate()
+                    }
 
                     pressedIndex = -1
                     dragging = false
+                    longPressTriggered = false
 
                     parent.requestDisallowInterceptTouchEvent(false)
-
                     if (click) {
                         render.items[index].action?.let { onItemAction?.invoke(it) }
                     } else if (springBackIfNeeded()) {
@@ -250,8 +258,12 @@ abstract class SidePanelView(
 
                 MotionEvent.ACTION_CANCEL -> {
                     recycleVelocityTracker()
+                    removeCallbacks(longPressRunnable)
+
                     pressedIndex = -1
                     dragging = false
+                    longPressTriggered = false
+
                     springBackIfNeeded()
                     return true
                 }
