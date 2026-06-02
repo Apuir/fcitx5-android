@@ -1,3 +1,10 @@
-# fcitx5-android
+## 📖 三步快速部署简意输入法
+### 步骤1：下载安装APK
+点击首页【下载APK】按钮，下载安装包并在手机完成安装。
 
-[Fcitx5](https://github.com/fcitx/fcitx5) input method framework and engines ported to Android.
+### 步骤2：安装Rime内核插件
+打开简意输入法APP → 进入插件管理 → 在线安装Rime输入法插件。
+
+### 步骤3：下载并导入输入方案
+1. 点击【下载方案】，任选雾凇/万象/白霜拼音压缩包；
+2. APP内Rime设置 → 导入方案，选中zip文件完成配置。
