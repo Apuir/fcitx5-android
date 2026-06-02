@@ -12,7 +12,6 @@ import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
-import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import splitties.views.imageResource
 import kotlin.collections.asSequence
@@ -22,41 +21,72 @@ import kotlin.collections.orEmpty
 class NumberKeyboard(
     context: Context,
     theme: Theme,
-) : BaseKeyboard(context, theme, Layout) {
-
+) : SidePanelKeyboard(
+    context, theme, 3, 4, SideLayout, Layout
+) {
     private val fcitx = FcitxDaemon.connect(javaClass.name)
 
+    init {
+        updateSideBarItems(SideLayoutItems)
+    }
 
     companion object {
         const val Name = "Number"
 
+        val SideLayoutItems = listOf(
+            CommitKey("+", textSize = 18f),
+            CommitKey("-", textSize = 18f),
+            CommitKey("*", textSize = 18f),
+            CommitKey("/", textSize = 18f),
+            CommitKey("=", textSize = 18f),
+            CommitKey(":", textSize = 18f),
+            CommitKey("...", textSize = 18f),
+            CommitKey("?", textSize = 18f),
+            CommitKey("!", textSize = 18f),
+        )
+
+        val SideLayout: KeyDef = ColumnKey(
+            percentWidth = 0.15f,
+            variant = Variant.Alternative,
+        )
+
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
-                NumPadKey("+", 0xffab, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("1", 0xffb1, 24f, 0f),
-                NumPadKey("2", 0xffb2, 24f, 0f),
-                NumPadKey("3", 0xffb3, 24f, 0f),
+                PlaceHolderKey(),
+                NumPadKey("1", 0xffb1, 26f, 0f),
+                NumPadKey("2", 0xffb2, 26f, 0f),
+                NumPadKey("3", 0xffb3, 26f, 0f),
                 BackspaceKey(),
             ), listOf(
-                NumPadKey("-", 0xffad, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("4", 0xffb4, 24f, 0f),
-                NumPadKey("5", 0xffb5, 24f, 0f),
-                NumPadKey("6", 0xffb6, 24f, 0f),
+                PlaceHolderKey(),
+                NumPadKey("4", 0xffb4, 26f, 0f),
+                NumPadKey("5", 0xffb5, 26f, 0f),
+                NumPadKey("6", 0xffb6, 26f, 0f),
                 MiniSpaceKey()
             ), listOf(
-                NumPadKey("*", 0xffaa, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
-                NumPadKey("7", 0xffb7, 24f, 0f),
-                NumPadKey("8", 0xffb8, 24f, 0f),
-                NumPadKey("9", 0xffb9, 24f, 0f),
-                NumPadKey("=", 0xffbd, 21f, 0.15f, KeyDef.Appearance.Variant.Alternative),
+                PlaceHolderKey(),
+                NumPadKey("7", 0xffb7, 26f, 0f),
+                NumPadKey("8", 0xffb8, 26f, 0f),
+                NumPadKey("9", 0xffb9, 26f, 0f),
+                CommitKey("@", textSize = 20f, percentWidth = 0.15f, variant = Variant.Alternative),
             ), listOf(
                 LayoutSwitchKey("Abc", "", textSize = 15f, percentWidth = 0.15f),
-                NumPadKey("/", 0xffaf, 21f, 0.1f, KeyDef.Appearance.Variant.Alternative),
+                NumPadKey(",", 0xffac, 18f, 0.1f, KeyDef.Appearance.Variant.Alternative),
                 CommitKey(
-                    "!", border = Border.Default, percentWidth = 0.13333f, textSize = 21f, variant = Variant.Alternative
+                    "^",
+                    border = Border.Default,
+                    percentWidth = 0.13333f,
+                    textSize = 18f,
+                    variant = Variant.Alternative
                 ),
-                NumPadKey("0", 0xffb0, 24f, 0f),
-                NumPadKey(",", 0xffac, 21f, 0.13333f, KeyDef.Appearance.Variant.Alternative),
+                NumPadKey("0", 0xffb0, 26f, 0f),
+                CommitKey(
+                    "~",
+                    border = Border.Default,
+                    percentWidth = 0.13333f,
+                    textSize = 18f,
+                    variant = Variant.Alternative
+                ),
                 CommaKey(percentWidth = 0.1f, variant = Variant.Alternative),
                 ReturnKey()
             )
@@ -99,5 +129,14 @@ class NumberKeyboard(
             }
             else -> super.onAction(action, source)
         }
+    }
+
+    override fun onAttach() {
+        updateSideBarItems(SideLayoutItems)
+        super.onAttach()
+    }
+
+    override fun shouldUpdateSidePanelWhenFcitxEvent(): Boolean {
+        return false
     }
 }

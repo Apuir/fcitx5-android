@@ -8,7 +8,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -19,18 +18,12 @@ import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
 import android.util.TypedValue
 import android.view.View
-import android.view.ViewOutlineProvider
-import android.widget.EdgeEffect
 import android.widget.ImageView
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.annotation.FloatRange
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSmoothScroller
-import androidx.recyclerview.widget.LinearSnapHelper
-import androidx.recyclerview.widget.RecyclerView
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.data.theme.Theme
@@ -39,6 +32,8 @@ import org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition
 import org.fcitx.fcitx5.android.input.AutoScaleTextView
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
+import org.fcitx.fcitx5.android.input.keyboard.widget.SidePanelRender
+import org.fcitx.fcitx5.android.input.keyboard.widget.SidePanelView
 import org.fcitx.fcitx5.android.utils.styledFloat
 import org.fcitx.fcitx5.android.utils.unset
 import splitties.dimensions.dp
@@ -415,83 +410,30 @@ private fun ImageView.configure(theme: Theme, @DrawableRes src: Int, variant: Va
 @SuppressLint("ViewConstructor")
 class ColumnKeyView(
     ctx: Context, theme: Theme, def: KeyDef.Appearance.Column
-) : KeyView(ctx, theme, def) {
-    private val recyclerView: RecyclerView = RecyclerView(ctx).apply {
-        setPadding(0, 6, 0, 6)
-        clipToPadding = true
-        overScrollMode = OVER_SCROLL_NEVER
-        isVerticalScrollBarEnabled = true
-        clipChildren = true
-        clipToOutline = true
-
-        layoutManager = LinearLayoutManager(ctx, RecyclerView.VERTICAL, false)
-        LinearSnapHelper().attachToRecyclerView(this)
-
-        edgeEffectFactory = object : RecyclerView.EdgeEffectFactory() {
-            override fun createEdgeEffect(view: RecyclerView, direction: Int) =
-                EdgeEffect(view.context).apply { finish() }
-        }
-    }
-
-    /** Adapter 由外部注入 */
-    var adapter: ColumnKeyboard.ColumnAdapter? = null
-        set(value) {
-            field = value
-            recyclerView.adapter = value
-            recyclerView.scrollToPosition(0)
-        }
-
-    init {
-        outlineProvider = ViewOutlineProvider.BOUNDS
-        clipToOutline = true
-        clipChildren = true
-        clipToPadding = true
-
-        addView(
-            recyclerView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        )
-    }
-
-    fun updateItemHeight(height: Int) {
-        val adapter = adapter ?: return
-        if (adapter.itemHeight == height) return
-        adapter.itemHeight = height
-        recyclerView.recycledViewPool.clear()
-        recyclerView.requestLayout()
-    }
-
-    fun resetPosition() {
-        // 创建自定义速度的 SmoothScroller
-        val smoothScroller = object : LinearSmoothScroller(recyclerView.context) {
-            override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics): Float {
-                // 默认值约 25f，这里改成 50f = 更慢；改成 10f = 更快
-                return 50f / displayMetrics.densityDpi
+) : SidePanelView(ctx, theme, def) {
+    override val render: SidePanelRender = object : SidePanelRender(
+        theme,
+        resources.displayMetrics.density,
+        visibleItemCount = 1,
+        appearance = def,
+    ) {
+        override fun toItem(itemDef: KeyDef): Item? {
+            val itemAppearance = itemDef.appearance as? KeyDef.Appearance.Text ?: return null
+            val action = itemDef.behaviors.firstNotNullOfOrNull { behavior ->
+                (behavior as? KeyDef.Behavior.Press)?.action
             }
-        }
-        // 设置滚动到顶部
-        smoothScroller.targetPosition = 0
-        // 启动滚动
-        recyclerView.layoutManager?.startSmoothScroll(smoothScroller)
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        recyclerView.post {
-            (recyclerView.layoutManager as? LinearLayoutManager)
-                ?.scrollToPositionWithOffset(0, 0)
-        }
-    }
-
-//    override fun dispatchDraw(canvas: Canvas) {
-//        val save = canvas.save()
-//        canvas.clipRect(0, 10, width, height - 10)
-//        super.dispatchDraw(canvas)
-//        canvas.restoreToCount(save)
-//    }
-
-    class VH(view: View) : RecyclerView.ViewHolder(view) {
-        init {
-            itemView.clipToOutline = true
+            val textColor = when (itemAppearance.variant) {
+                Variant.Normal -> theme.keyTextColor
+                Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
+                Variant.Accent -> theme.accentKeyTextColor
+            }
+            return Item(
+                label = itemAppearance.displayText,
+                textSize = itemAppearance.textSize,
+                textStyle = itemAppearance.textStyle,
+                textColor = textColor,
+                action = action,
+            )
         }
     }
 }

@@ -80,7 +80,7 @@ class PinYinCandidateKey(
 
 class CommitKey(
     content: String,
-    textSize: Float = 18f,
+    textSize: Float = 15f,
     border: Border = Border.Default,
     percentWidth: Float = 0.15f,
     variant: Variant = Variant.Alternative,

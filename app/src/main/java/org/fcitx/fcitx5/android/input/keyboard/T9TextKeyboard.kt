@@ -6,7 +6,6 @@ package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.View
 import androidx.annotation.Keep
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.FcitxKeyMapping
@@ -17,13 +16,12 @@ import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.input.popup.PopupAction
-import timber.log.Timber
 
 @SuppressLint("ViewConstructor")
 class T9TextKeyboard(
     context: Context, theme: Theme
-) : ColumnKeyboard(
-    context, theme, SideLayoutColumnNum, SideLayoutColumnShowNum, SideLayout, Layout
+) : SidePanelKeyboard(
+    context, theme, 3, 4, SideLayout, Layout
 ) {
     private val layoutPrefs = AppPrefs.getInstance().layout
 
@@ -57,18 +55,11 @@ class T9TextKeyboard(
 
     companion object {
         const val Name = "T9Text"
-
-        //占用3行
-        const val SideLayoutColumnNum = 3
-
-        //显示4行
-        const val SideLayoutColumnShowNum = 4
-
         fun generateItems(chars: String): List<KeyDef> {
             val items = ArrayList<KeyDef>()
             val chars = chars.trim().split(" ")
             chars.forEach { char ->
-                items.add(CommitKey(char))
+                items.add(CommitKey(char.trim(), textSize = 18f))
             }
             return items
         }
@@ -81,21 +72,21 @@ class T9TextKeyboard(
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
                 PlaceHolderKey(),
-                MixAlphabetKey("分词", "1"),
-                MixAlphabetKey("ABC", "2"),
-                MixAlphabetKey("DEF", "3"),
+                MixAlphabetKey("分词", "1", percentWidth = 0f),
+                MixAlphabetKey("ABC", "2", percentWidth = 0f),
+                MixAlphabetKey("DEF", "3", percentWidth = 0f),
                 BackspaceKey(percentWidth = 0.15f),
             ), listOf(
                 PlaceHolderKey(),
-                MixAlphabetKey("GHI", "4"),
-                MixAlphabetKey("JKL", "5"),
-                MixAlphabetKey("MNO", "6"),
+                MixAlphabetKey("GHI", "4", percentWidth = 0f),
+                MixAlphabetKey("JKL", "5", percentWidth = 0f),
+                MixAlphabetKey("MNO", "6", percentWidth = 0f),
                 ClearKey(displayText = "清空", percentWidth = 0.15f),
             ), listOf(
                 PlaceHolderKey(),
-                MixAlphabetKey("PQRS", "7"),
-                MixAlphabetKey("TUV", "8"),
-                MixAlphabetKey("WXYZ", "9"),
+                MixAlphabetKey("PQRS", "7", percentWidth = 0f),
+                MixAlphabetKey("TUV", "8", percentWidth = 0f),
+                MixAlphabetKey("WXYZ", "9", percentWidth = 0f),
                 VoiceKey(),
                 ConfigurableCommitKey("@", percentWidth = 0.15f, variant = Variant.Alternative)
             ), listOf(
@@ -179,5 +170,9 @@ class T9TextKeyboard(
         }
         voiceInputBtn.visibility = VISIBLE
         configurableCommitBtn.visibility = GONE
+    }
+
+    override fun shouldUpdateSidePanelWhenFcitxEvent(): Boolean{
+        return true
     }
 }

@@ -56,7 +56,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     inner class Layout : ManagedPreferenceCategory(R.string.layout_settings, sharedPreferences) {
         val t9SubTitle = subTitle(title = R.string.t9_layout)
         val sidebarSymbols =
-            string(title = R.string.t9_sidebar_symbols, "layout_t9_sidebar_symbols", "， 。 ！ ？")
+            string(title = R.string.t9_sidebar_symbols, "layout_t9_sidebar_symbols", "。 ， ！ ？")
         val replaceVoiceBtn =
             string(R.string.t9_replace_voice_btn, "layout_t9_sidebar_replace_voice_btn", "")
 

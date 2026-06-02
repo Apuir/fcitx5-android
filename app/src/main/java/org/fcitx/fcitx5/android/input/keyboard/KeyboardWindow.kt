@@ -109,6 +109,9 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             }
         }
         if (it is KeyAction.LayoutSwitchAction) {
+            service.postFcitxJob {
+                reset()
+            }
             switchLayout(it.act)
         } else {
             commonKeyActionListener.listener.onKeyAction(it, source)
