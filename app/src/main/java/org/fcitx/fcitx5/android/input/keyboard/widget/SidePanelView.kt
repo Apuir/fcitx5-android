@@ -19,6 +19,7 @@ import org.fcitx.fcitx5.android.input.keyboard.KeyView
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
+import timber.log.Timber
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -225,10 +226,10 @@ abstract class SidePanelView(
 
                     recycleVelocityTracker()
                     removeCallbacks(longPressRunnable)
-                    if (!longPressTriggered){
+                    if (!longPressTriggered) {
                         pressedIndex = render.itemIndexAt(panel, event.y, scrollOffset)
-                        // 🌊 start ripple（无透明变化）
-                        if (pressedIndex >= 0) {
+                        val itemHeight = render.itemHeight(panel.height())
+                        if (pressedIndex >= 0 && abs(event.y - downY) < itemHeight) {
                             rippleIndex = pressedIndex
                             rippleX = event.x
                             rippleY = event.y
