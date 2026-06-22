@@ -70,15 +70,15 @@ class NumberKeyboard(
                 NumPadKey("9", 0xffb9, 26f, 0f),
                 CommitKey("@", textSize = 20f, percentWidth = 0.15f, variant = Variant.Alternative),
             ), listOf(
-                LayoutSwitchKey("Abc", "", textSize = 15f, percentWidth = 0.15f),
-                NumPadKey(",", 0xffac, 18f, 0.1f, KeyDef.Appearance.Variant.Alternative),
                 CommitKey(
                     "^",
                     border = Border.Default,
-                    percentWidth = 0.13333f,
+                    percentWidth = 0.15f,
                     textSize = 18f,
                     variant = Variant.Alternative
                 ),
+                LayoutSwitchKey("Abc", KeyboardWindow.RETURN_TO_PREVIOUS, textSize = 15f, percentWidth = 0.15f),
+                NumPadKey(",", 0xffac, 18f, 0.1f, KeyDef.Appearance.Variant.Alternative),
                 NumPadKey("0", 0xffb0, 26f, 0f),
                 CommitKey(
                     "~",
@@ -125,6 +125,8 @@ class NumberKeyboard(
                             )
                         }
                     }
+                } else {
+                    super.onAction(action, source)
                 }
             }
             else -> super.onAction(action, source)

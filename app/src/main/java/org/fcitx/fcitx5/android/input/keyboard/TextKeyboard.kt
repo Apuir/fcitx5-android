@@ -67,10 +67,12 @@ class TextKeyboard(
                 BackspaceKey()
             ),
             listOf(
+                SymbolPickerKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 LayoutSwitchKey("?123", MixNumberKeyboard.Name, percentWidth = 0.15f, textSize = 15f),
-                LanguageKey(percentWidth = 0.15f,variant = Variant.Alternative),
+                SimplePunctuationKey(",", percentWidth = 0.075f, variant = Variant.Alternative, useCommit = true),
                 SpaceKey(),
-                CommaKey(percentWidth = 0.15f, variant = Variant.Alternative),
+                SimplePunctuationKey(".", percentWidth = 0.075f, variant = Variant.Alternative),
+                LanguageKey(percentWidth = 0.15f, variant = Variant.Alternative),
                 ReturnKey(percentWidth = 0.15f)
             )
         )

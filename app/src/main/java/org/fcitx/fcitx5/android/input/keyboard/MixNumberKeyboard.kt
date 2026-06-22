@@ -60,8 +60,8 @@ class MixNumberKeyboard(
                     "=",  percentWidth = 0.125f, variant = Variant.Alternative
                 ),
             ), listOf(
-                LayoutSwitchKey("Abc", "", percentWidth = 0.125f, textSize = 15f),
                 CommitKey("<",  percentWidth = 0.1f),
+                LayoutSwitchKey("Abc", KeyboardWindow.RETURN_TO_PREVIOUS, percentWidth = 0.125f, textSize = 15f),
                 CommitKey(">",  percentWidth = 0.1f),
                 CommitKey("/",  percentWidth = 0.1f),
                 CommitKey(
@@ -106,6 +106,8 @@ class MixNumberKeyboard(
                             )
                         }
                     }
+                } else {
+                    super.onAction(action, source)
                 }
             }
             else -> super.onAction(action, source)

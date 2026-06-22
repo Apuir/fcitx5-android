@@ -37,7 +37,7 @@ find_package(Boost 1.87.0 REQUIRED COMPONENTS iostreams CONFIG)
 add_compile_definitions("BOOST_ALL_NO_EMBEDDED_GDB_SCRIPTS")
 
 # prebuilt marisa-tire, OpenCC needs it
-set(Marisa_DIR "${PREBUILT_DIR}/marisa/${ANDROID_ABI}/lib/cmake/Marisa")
+set(Marisa_DIR "${PREBUILT_DIR}/marisa/${ANDROID_ABI}/lib/cmake/marisa")
 find_package(Marisa)
 
 # prebuilt opencc

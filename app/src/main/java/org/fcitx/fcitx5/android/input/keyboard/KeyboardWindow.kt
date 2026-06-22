@@ -54,9 +54,13 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val returnKeyDrawable: ReturnKeyDrawableComponent by manager.must()
 
     companion object : EssentialWindow.Key {
+        const val RETURN_TO_PREVIOUS = "__back__"
+
         val preferKeyboardMap = mapOf(
             "T9" to T9TextKeyboard.Name, "T26" to TextKeyboard.Name
         )
+
+        val defaultT9Addons = setOf("rime", "jyutping")
 
         var voiceRecordingMode: VoiceRecordingMode = VoiceRecordingMode.None
 
@@ -94,6 +98,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
     private var currentKeyboardName = ""
     private var lastSymbolType: String by AppPrefs.getInstance().internal.lastSymbolLayout
+    private var previousLetterLayout: String = TextKeyboard.Name
 
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
@@ -151,7 +156,17 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     fun switchLayout(to: String, remember: Boolean = true) {
-        val target = to.ifEmpty { lastSymbolType }
+        val target = when {
+            to == RETURN_TO_PREVIOUS -> previousLetterLayout
+            to.ifEmpty { lastSymbolType }.let { it == NumberKeyboard.Name || it == MixNumberKeyboard.Name } -> {
+                // Save current letter layout before switching to number keyboard
+                if (currentKeyboardName == TextKeyboard.Name || currentKeyboardName == T9TextKeyboard.Name) {
+                    previousLetterLayout = currentKeyboardName
+                }
+                to.ifEmpty { lastSymbolType }
+            }
+            else -> to.ifEmpty { lastSymbolType }
+        }
         ContextCompat.getMainExecutor(service).execute {
             if (keyboards.containsKey(target)) {
                 if (remember && target != TextKeyboard.Name) {
@@ -230,14 +245,16 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     // 主UI支持不同引擎的自主逻辑切换
     private fun autoSwitchLayout(fallback: String){
         service.postFcitxJob {
-            val config = getImConfig(currentIme().uniqueName)
+            val ime = currentIme()
+            val config = getImConfig(ime.uniqueName)
             val preferLayout = config.subItems
                 ?.asSequence()
                 ?.flatMap { it.subItems.orEmpty().asSequence() }
                 ?.firstOrNull { it.name == "PreferKeyboard" }
                 ?.value
                 ?.let { preferKeyboardMap[it] }
-            switchLayout(preferLayout ?: fallback, remember = false)
+                ?: if (ime.addon in defaultT9Addons) T9TextKeyboard.Name else fallback
+            switchLayout(preferLayout, remember = false)
         }
     }
 

@@ -19,6 +19,43 @@ import org.fcitx.fcitx5.android.input.picker.PickerWindow
 
 val NumLockState = KeyStates(KeyState.NumLock, KeyState.Virtual)
 
+class SymbolPickerKey(
+    percentWidth: Float = 0.15f,
+    variant: Variant = Variant.Alternative,
+) : KeyDef(
+    Appearance.Image(
+        src = R.drawable.ic_baseline_at_24,
+        percentWidth = percentWidth,
+        variant = variant,
+    ), setOf(
+        Behavior.Press(KeyAction.PickerSwitchAction(PickerWindow.Key.Symbol))
+    )
+)
+class SimplePunctuationKey(
+    displayText: String,
+    percentWidth: Float,
+    variant: Variant,
+    keySym: Int = FcitxKeyMapping.FcitxKey_period,
+    useCommit: Boolean = false,
+) : KeyDef(
+    Appearance.Text(
+        displayText = displayText,
+        textSize = 23f,
+        percentWidth = percentWidth,
+        variant = variant,
+    ), setOf(
+        if (useCommit) {
+            Behavior.Press(KeyAction.CommitAction(displayText))
+        } else {
+            Behavior.Press(
+                KeyAction.SymAction(
+                    KeySym(keySym),
+                    KeyStates(KeyState.Virtual, KeyState.CapsLock)
+                )
+            )
+        }
+    )
+)
 class SymbolKey(
     val symbol: String,
     percentWidth: Float = 0.1f,

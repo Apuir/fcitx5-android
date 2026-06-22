@@ -155,6 +155,7 @@ public:
         if (!ic) return nullptr;
         auto *entry = p_instance->inputMethodEntry(ic);
         auto *engine = p_instance->inputMethodEngine(ic);
+        if (!entry || !engine) return nullptr;
         return std::make_unique<InputMethodStatus>(entry, engine, ic);
     }
 
