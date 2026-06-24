@@ -170,19 +170,20 @@ public:
     void setInput(const std::string &input) {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return;
-        p_instance->setInput(ic, input);
+        p_instance->setRawInput(ic, input);
     }
 
     const char * getInput() {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return "";
-        return p_instance->getInput(ic);
+        tlsRawInput_ = p_instance->rawInput(ic);
+        return tlsRawInput_.c_str();
     }
 
     size_t getInputConfirmPosition() {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return 0;
-        return p_instance->getInputConfirmPosition(ic);
+        return p_instance->rawInputConfirmPosition(ic);
     }
 
     std::vector<const fcitx::InputMethodEntry *> availableInputMethods() {
@@ -485,6 +486,7 @@ private:
     fcitx::AddonInstance *p_quickphrase = nullptr;
     fcitx::AddonInstance *p_unicode = nullptr;
     fcitx::AddonInstance *p_clipboard = nullptr;
+    std::string tlsRawInput_;
 
     void resetGlobalPointers() {
         p_instance.reset();

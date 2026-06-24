@@ -113,13 +113,20 @@ abstract class SidePanelKeyboard(
                 composingPreedit = event.data.preedit.toString()
                 fcitx.lifecycleScope.launch {
                     fcitx.runIfReady {
-                        val input = getRimeInput()
-                        if (input.isEmpty()) {
+                        val rimeInput = getRimeInput()
+                        // Rime on Android often hides preedit; rely on panel empty state
+                        // instead of raw input alone to avoid clearing active T9 digit queue.
+                        if (rimeInput.isEmpty() && isEmpty()) {
                             behaviorQueue.clear()
                             inputQueue.clear()
                             selectedQueue.clear()
                         }
-                        val position = getRimeInputConfirmPosition()
+                        val position = if (rimeInput.isNotEmpty()) {
+                            getRimeInputConfirmPosition()
+                        } else {
+                            localConfirmedLength()
+                        }
+                        val input = rimeInput.ifEmpty { inputQueue.joinToString("") }
                         val keys = buildPossibleCombinations(input, position)
                         withContext(Dispatchers.Main) {
                             sideLayoutKeyView.updateItems(keys.ifEmpty { sideColumnItems })
@@ -142,6 +149,7 @@ abstract class SidePanelKeyboard(
             is KeyAction.SelectPinYinAction -> {
                 behavior = KeyboardBehavior.SELECT_PINYIN
                 selectedQueue.add(action)
+                refreshSidePanelItems()
                 updateRimeInput()
             }
             is KeyAction.FcitxKeyAction -> {
@@ -158,6 +166,7 @@ abstract class SidePanelKeyboard(
             }
             is KeyAction.SymAction -> {
                 if (action.sym == backspaceKeySym && recontrolBackspace()) {
+                    refreshSidePanelItems()
                     updateRimeInput()
                     return
                 }
@@ -171,7 +180,23 @@ abstract class SidePanelKeyboard(
         if (behavior != KeyboardBehavior.NONE) {
             behaviorQueue.add(behavior)
         }
+        if (action is KeyAction.FcitxKeyAction || behavior == KeyboardBehavior.SEGMENT) {
+            refreshSidePanelItems()
+        }
         super.onAction(action, source)
+    }
+
+    private fun localConfirmedLength(): Int =
+        selectedQueue.maxOfOrNull { it.pos + it.raw.length } ?: 0
+
+    private fun refreshSidePanelItems() {
+        if (inputQueue.isEmpty()) {
+            sideLayoutKeyView.updateItems(sideColumnItems)
+            return
+        }
+        val input = inputQueue.joinToString("")
+        val keys = buildPossibleCombinations(input, localConfirmedLength())
+        sideLayoutKeyView.updateItems(keys.ifEmpty { sideColumnItems })
     }
 
     fun recontrolBackspace(): Boolean {
